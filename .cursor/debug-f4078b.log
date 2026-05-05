@@ -1,0 +1,3 @@
+{"sessionId":"f4078b","location":"admin/login/actions.ts:entry","message":"loginAction start","data":{"hasEnvUrl":true,"hasEnvKey":true,"emailLen":13},"timestamp":1777882990816,"hypothesisId":"H5"}
+{"sessionId":"f4078b","location":"admin/login/actions.ts:afterSignIn","message":"signInWithPassword result","data":{"authError":"fetch failed","authCode":null,"authOk":false},"timestamp":1777882991297,"hypothesisId":"H1"}
+{"sessionId":"f4078b","location":"admin/login/actions.ts:authErrorBranch","message":"signIn error classification","data":{"isNetwork":true,"rawMessagePrefix":"fetch failed"},"timestamp":1777882991297,"hypothesisId":"H1-network"}

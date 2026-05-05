@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Marktplatz: Browser öffnen (localhost:3010)",
+      "type": "shell",
+      "command": "open",
+      "args": ["http://127.0.0.1:3010"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent", "panel": "shared" }
+    }
+  ]
+}
