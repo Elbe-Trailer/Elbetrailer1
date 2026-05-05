@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import BlogContent from "@/components/BlogMarkdown";
 import BlogRichTextEditor from "@/components/blog/BlogRichTextEditor";
 import { publicStorageUrl } from "@/lib/storage";
@@ -41,6 +41,10 @@ export default function BlogPostForm({ post, categories }: Props) {
   const [slug, setSlug] = useState(post?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(Boolean(post?.slug));
   const [content, setContent] = useState(post?.content ?? "");
+  const [selectedCoverPreview, setSelectedCoverPreview] = useState<string | null>(
+    null,
+  );
+  const selectedCoverPreviewRef = useRef<string | null>(null);
 
   const slugPreview = useMemo(() => {
     const s = slug.trim();
@@ -52,6 +56,15 @@ export default function BlogPostForm({ post, categories }: Props) {
     post?.cover_image_path != null && post.cover_image_path !== ""
       ? publicStorageUrl("blog", post.cover_image_path)
       : null;
+  const effectiveCoverPreview = selectedCoverPreview ?? coverSrc;
+
+  useEffect(() => {
+    return () => {
+      if (selectedCoverPreviewRef.current) {
+        URL.revokeObjectURL(selectedCoverPreviewRef.current);
+      }
+    };
+  }, []);
 
   return (
     <form action={formAction} className="space-y-8">
@@ -152,13 +165,37 @@ export default function BlogPostForm({ post, categories }: Props) {
 
           <div>
             <label className="mb-1 block text-xs font-medium" htmlFor="cover">
-              Coverbild {!post ? "(optional)" : "(optional ersetzen)"}
+              Titelbild / Vorschau-Bild{" "}
+              {!post ? "(optional)" : "(optional ersetzen)"}
             </label>
-            <input id="cover" name="cover" type="file" accept="image/*" />
-            {coverSrc ? (
+            <input
+              id="cover"
+              name="cover"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                if (selectedCoverPreviewRef.current) {
+                  URL.revokeObjectURL(selectedCoverPreviewRef.current);
+                  selectedCoverPreviewRef.current = null;
+                }
+                if (!file) {
+                  setSelectedCoverPreview(null);
+                  return;
+                }
+                const objectUrl = URL.createObjectURL(file);
+                selectedCoverPreviewRef.current = objectUrl;
+                setSelectedCoverPreview(objectUrl);
+              }}
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Dieses Bild wird automatisch als Vorschaubild in den Blog-Listen
+              verwendet.
+            </p>
+            {effectiveCoverPreview ? (
               <div className="relative mt-3 h-40 w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
                 <Image
-                  src={coverSrc}
+                  src={effectiveCoverPreview}
                   alt=""
                   fill
                   className="object-cover"

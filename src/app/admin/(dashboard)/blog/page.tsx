@@ -1,5 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/admin";
+import { publicStorageUrl } from "@/lib/storage";
 import { deleteBlogPost } from "./actions";
 import ConfirmDeleteButton from "./ConfirmDeleteButton";
 
@@ -15,7 +17,7 @@ export default async function AdminBlogPage({ searchParams }: Props) {
   let postsQuery = supabase
     .from("blog_posts")
     .select(
-      "id, slug, title, published, published_at, updated_at, blog_categories ( name, slug )",
+      "id, slug, title, cover_image_path, published, published_at, updated_at, blog_categories ( name, slug )",
     )
     .order("updated_at", { ascending: false });
 
@@ -87,6 +89,9 @@ export default async function AdminBlogPage({ searchParams }: Props) {
             <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50">
               <tr>
                 <th className="px-4 py-3 font-semibold text-zinc-900 dark:text-white">
+                  Bild
+                </th>
+                <th className="px-4 py-3 font-semibold text-zinc-900 dark:text-white">
                   Titel
                 </th>
                 <th className="px-4 py-3 font-semibold text-zinc-900 dark:text-white">
@@ -114,8 +119,28 @@ export default async function AdminBlogPage({ searchParams }: Props) {
                   row.published && row.published_at
                     ? new Date(row.published_at).toLocaleDateString("de-DE")
                     : new Date(row.updated_at).toLocaleDateString("de-DE");
+                const cover =
+                  row.cover_image_path != null && row.cover_image_path !== ""
+                    ? publicStorageUrl("blog", row.cover_image_path)
+                    : null;
                 return (
                   <tr key={row.id} className="bg-white dark:bg-zinc-900">
+                    <td className="px-4 py-3">
+                      {cover ? (
+                        <div className="relative h-12 w-16 overflow-hidden rounded border border-zinc-200 dark:border-zinc-700">
+                          <Image
+                            src={cover}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                            unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-zinc-400">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <Link
                         href={`/admin/blog/${row.id}`}

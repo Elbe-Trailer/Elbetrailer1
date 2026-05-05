@@ -24,25 +24,6 @@ function IconChevronDown({ className }: { className?: string }) {
   );
 }
 
-function IconWrench({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-    </svg>
-  );
-}
-
 function IconSearch({ className }: { className?: string }) {
   return (
     <svg
@@ -80,7 +61,6 @@ export default function HeaderNav({ categories }: Props) {
     return () => window.removeEventListener("resize", onResize);
   }, [mobileOpen]);
 
-  const coral = "var(--header-coral)";
   const menuBarGreen = "#2f9e44";
 
   return (
@@ -161,6 +141,12 @@ export default function HeaderNav({ categories }: Props) {
               Über uns
             </Link>
             <Link
+              href="/service"
+              className="rounded px-2 py-2 text-sm font-medium hover:bg-white/10 xl:px-3"
+            >
+              Service
+            </Link>
+            <Link
               href="/mieten"
               className="rounded px-2 py-2 text-sm font-medium hover:bg-white/10 xl:px-3"
             >
@@ -173,19 +159,10 @@ export default function HeaderNav({ categories }: Props) {
               Blog
             </Link>
             <Link
-              href="/ueber-uns#kontakt"
+              href="/kontakt"
               className="rounded px-2 py-2 text-sm font-medium hover:bg-white/10 xl:px-3"
             >
               Kontakt
-            </Link>
-
-            <Link
-              href="/#angebote"
-              className="ml-2 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold shadow-sm transition hover:bg-white/95"
-              style={{ color: coral }}
-            >
-              <IconWrench className="shrink-0" />
-              Konfigurator
             </Link>
 
             <Link
@@ -272,6 +249,13 @@ export default function HeaderNav({ categories }: Props) {
                 Über uns
               </Link>
               <Link
+                href="/service"
+                className="block rounded-md px-3 py-2.5 hover:bg-zinc-100"
+                onClick={() => setMobileOpen(false)}
+              >
+                Service
+              </Link>
+              <Link
                 href="/mieten"
                 className="block rounded-md px-3 py-2.5 hover:bg-zinc-100"
                 onClick={() => setMobileOpen(false)}
@@ -286,20 +270,11 @@ export default function HeaderNav({ categories }: Props) {
                 Blog
               </Link>
               <Link
-                href="/ueber-uns#kontakt"
+                href="/kontakt"
                 className="block rounded-md px-3 py-2.5 hover:bg-zinc-100"
                 onClick={() => setMobileOpen(false)}
               >
                 Kontakt
-              </Link>
-              <Link
-                href="/#angebote"
-                className="mt-2 flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold shadow-sm"
-                style={{ color: coral }}
-                onClick={() => setMobileOpen(false)}
-              >
-                <IconWrench className="shrink-0" />
-                Konfigurator
               </Link>
             </nav>
           </div>

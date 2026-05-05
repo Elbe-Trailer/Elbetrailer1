@@ -2,13 +2,20 @@ import { requireAdmin } from "@/lib/auth/admin";
 
 export default async function AdminInquiriesPage() {
   const { supabase } = await requireAdmin();
-  const { data: rows } = await supabase
-    .from("inquiries")
-    .select(
-      "id, name, email, phone, message, accessory_selections, start_date, end_date, rental_unit_id, created_at, listings ( title )",
-    )
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [{ data: rows }, { data: contactRows }] = await Promise.all([
+    supabase
+      .from("inquiries")
+      .select(
+        "id, name, email, phone, message, accessory_selections, start_date, end_date, rental_unit_id, created_at, listings ( title )",
+      )
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase
+      .from("contact_inquiries")
+      .select("id, name, email, phone, message, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -17,7 +24,7 @@ export default async function AdminInquiriesPage() {
       </h1>
 
       {!rows?.length ? (
-        <p className="text-zinc-500">Noch keine Anfragen.</p>
+        <p className="text-zinc-500">Noch keine Inserat-Anfragen.</p>
       ) : (
         <ul className="space-y-6">
           {rows.map((r) => {
@@ -96,6 +103,47 @@ export default async function AdminInquiriesPage() {
           })}
         </ul>
       )}
+
+      <div className="border-t border-zinc-200 pt-6 dark:border-zinc-700">
+        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
+          Kontakt-Anfragen
+        </h2>
+        {!contactRows?.length ? (
+          <p className="mt-2 text-zinc-500">Noch keine Kontakt-Anfragen.</p>
+        ) : (
+          <ul className="mt-4 space-y-6">
+            {contactRows.map((r) => (
+              <li
+                key={r.id}
+                className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700"
+              >
+                <div className="flex flex-wrap justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{r.name}</p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      <a className="underline" href={`mailto:${r.email}`}>
+                        {r.email}
+                      </a>
+                      {r.phone ? ` · ${r.phone}` : null}
+                    </p>
+                  </div>
+                  <time
+                    className="text-xs text-zinc-500"
+                    dateTime={r.created_at}
+                  >
+                    {new Date(r.created_at).toLocaleString("de-DE")}
+                  </time>
+                </div>
+                {r.message ? (
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
+                    {r.message}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

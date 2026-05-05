@@ -105,6 +105,22 @@ export default async function Footer() {
                   Über uns
                 </Link>
               </li>
+              <li>
+                <Link
+                  className="text-zinc-800 hover:underline dark:text-zinc-200"
+                  href="/kontakt"
+                >
+                  Kontakt
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className="text-zinc-800 hover:underline dark:text-zinc-200"
+                  href="/impressum"
+                >
+                  Impressum
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
