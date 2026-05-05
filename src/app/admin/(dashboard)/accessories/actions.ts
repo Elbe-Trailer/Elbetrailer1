@@ -2,6 +2,7 @@
 
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
+import { removeObjects, uploadObject } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -24,10 +25,13 @@ async function uploadAccImage(
 ): Promise<string | null> {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const path = `${folderId}/${Date.now()}-${safe}`;
-  const { error } = await supabase.storage
-    .from("accessories")
-    .upload(path, file, { upsert: false });
-  return error ? null : path;
+  const up = await uploadObject({
+    bucket: "accessories",
+    path,
+    file,
+    supabaseFallback: supabase,
+  });
+  return up.ok ? path : null;
 }
 
 export async function saveAccessory(
@@ -122,7 +126,11 @@ export async function deleteAccessory(formData: FormData) {
     .eq("id", id)
     .single();
   if (row?.image_path) {
-    await supabase.storage.from("accessories").remove([row.image_path]);
+    await removeObjects({
+      bucket: "accessories",
+      paths: [row.image_path],
+      supabaseFallback: supabase,
+    });
   }
   await supabase.from("accessories").delete().eq("id", id);
   revalidatePath("/admin/accessories");

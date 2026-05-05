@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import AdminInlinePostEditor from "@/components/blog/AdminInlinePostEditor";
 import BlogMarkdown from "@/components/BlogMarkdown";
 import ContentContainer from "@/components/ContentContainer";
+import { getOptionalAdmin } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
 import { publicStorageUrl } from "@/lib/storage";
 
@@ -31,12 +33,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function BlogPostPublicPage({ params }: Props) {
   const { slug } = await params;
+  const adminSession = await getOptionalAdmin();
   const supabase = await createClient();
 
   const { data: post, error } = await supabase
     .from("blog_posts")
     .select(
-      "title, excerpt, content, author, published_at, cover_image_path, blog_categories ( slug, name )",
+      "id, slug, title, excerpt, content, author, published_at, cover_image_path, blog_categories ( slug, name )",
     )
     .eq("slug", slug)
     .eq("published", true)
@@ -113,7 +116,15 @@ export default async function BlogPostPublicPage({ params }: Props) {
           </div>
         ) : null}
 
-        <BlogMarkdown markdown={post.content} />
+        {adminSession ? (
+          <AdminInlinePostEditor
+            postId={post.id}
+            slug={post.slug}
+            initialContent={post.content}
+          />
+        ) : (
+          <BlogMarkdown markdown={post.content} />
+        )}
       </article>
     </ContentContainer>
   );

@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useRef, useState, type DragEvent } from "react";
+import Image from "next/image";
 import type {
   AccessoryForListingConfig,
   Category,
   Listing,
   ListingType,
 } from "@/types/database";
+import { publicStorageUrl } from "@/lib/storage";
 import SuccessChoiceDialog from "@/components/admin/SuccessChoiceDialog";
 import { saveListing, type SaveListingState } from "./actions";
 
@@ -54,6 +56,7 @@ type Props = {
   linked?: LaRow[];
   categories: Pick<Category, "id" | "name">[];
   accessories: AccessoryForListingConfig[];
+  currentGalleryPaths?: string[];
 };
 
 export default function ListingForm({
@@ -61,6 +64,7 @@ export default function ListingForm({
   linked = [],
   categories,
   accessories,
+  currentGalleryPaths = [],
 }: Props) {
   const initialType = (listing?.listing_type as ListingType | undefined) ?? "kauf";
   const [offerKauf, setOfferKauf] = useState(
@@ -80,6 +84,30 @@ export default function ListingForm({
   const linkMap = new Map(linked.map((r) => [r.accessory_id, r.max_quantity]));
 
   const groups = useMemo(() => accessoryGroups(accessories), [accessories]);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [selectedImageNames, setSelectedImageNames] = useState<string[]>([]);
+
+  function handleImageSelection(files: FileList | null) {
+    if (!files) {
+      setSelectedImageNames([]);
+      return;
+    }
+    setSelectedImageNames(Array.from(files).map((file) => file.name));
+  }
+
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragActive(false);
+    const files = event.dataTransfer.files;
+    if (!files?.length) return;
+    if (imageInputRef.current) {
+      const dt = new DataTransfer();
+      for (const file of Array.from(files)) dt.items.add(file);
+      imageInputRef.current.files = dt.files;
+      handleImageSelection(dt.files);
+    }
+  }
 
   return (
     <>
@@ -107,6 +135,76 @@ export default function ListingForm({
           {state.error}
         </p>
       ) : null}
+
+      <div>
+        <p className="mb-2 text-sm font-medium">Aktuelle Bilder</p>
+        {currentGalleryPaths.length ? (
+          <ul className="mb-3 flex flex-wrap gap-2">
+            {currentGalleryPaths.map((path) => (
+              <li
+                key={path}
+                className="relative h-20 w-28 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
+              >
+                <Image
+                  src={publicStorageUrl("listings", path)}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="112px"
+                  unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <label
+          htmlFor="images"
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragActive(true);
+          }}
+          onDragLeave={() => setIsDragActive(false)}
+          onDrop={handleDrop}
+          className={`block cursor-pointer rounded-xl border-2 border-dashed p-4 transition ${
+            isDragActive
+              ? "border-amber-500 bg-amber-50 dark:border-amber-400 dark:bg-amber-500/10"
+              : "border-zinc-300 bg-zinc-50 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/40 dark:hover:border-zinc-500"
+          }`}
+        >
+          <input
+            ref={imageInputRef}
+            id="images"
+            name="images"
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => handleImageSelection(e.currentTarget.files)}
+          />
+          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+            Bilder hierher ziehen oder im Browser auswählen
+          </p>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            JPG, PNG, WEBP. Mehrfachauswahl wird unter den bestehenden Bildern ergänzt.
+          </p>
+          {selectedImageNames.length ? (
+            <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-300">
+              {selectedImageNames.length} Bild(er) ausgewählt:{" "}
+              {selectedImageNames.slice(0, 3).join(", ")}
+              {selectedImageNames.length > 3 ? " …" : ""}
+            </p>
+          ) : null}
+        </label>
+        {currentGalleryPaths.length ? (
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            Bereits gespeichert: {currentGalleryPaths.length} Bild(er)
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            Noch keine Bilder gespeichert.
+          </p>
+        )}
+      </div>
 
       <div>
         <label className="mb-1 block text-sm font-medium" htmlFor="title">
@@ -463,17 +561,6 @@ export default function ListingForm({
             className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-950"
           />
         </div>
-      </div>
-
-      <div>
-        <p className="mb-2 text-sm font-medium">Bilder (neu hochladen)</p>
-        <input
-          name="images"
-          type="file"
-          accept="image/*"
-          multiple
-          className="text-sm"
-        />
       </div>
 
       <div>

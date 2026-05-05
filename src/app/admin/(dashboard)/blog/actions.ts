@@ -2,6 +2,8 @@
 
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
+import { sanitizeBlogHtml } from "@/lib/blog-content";
+import { removeObjects, uploadObject } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -9,11 +11,8 @@ export type SaveBlogPostState = undefined | { ok: false; error: string };
 
 function formatUploadErrorMessage(message: string | undefined): string {
   const msg = (message ?? "").toLowerCase();
-  if (msg.includes("bucket") && msg.includes("not found")) {
-    return "Cover-Upload fehlgeschlagen: Storage-Bucket 'blog' fehlt. Bitte die neue Supabase-Migration ausführen.";
-  }
-  if (msg.includes("row-level security") || msg.includes("permission denied")) {
-    return "Cover-Upload fehlgeschlagen: Keine Berechtigung auf Storage-Bucket 'blog' (RLS/Policies prüfen).";
+  if (msg.includes("cloudflare r2 ist nicht konfiguriert")) {
+    return "Cover-Upload fehlgeschlagen: Cloudflare R2 Konfiguration fehlt.";
   }
   return `Cover-Upload fehlgeschlagen${message ? `: ${message}` : "."}`;
 }
@@ -38,7 +37,7 @@ export async function saveBlogPost(
   let slug = normalizeSlug(String(formData.get("slug") ?? ""));
   if (!slug && title) slug = normalizeSlug(title);
   const excerpt = String(formData.get("excerpt") ?? "").trim() || null;
-  const content = String(formData.get("content") ?? "");
+  const content = sanitizeBlogHtml(String(formData.get("content") ?? ""));
   const author = String(formData.get("author") ?? "").trim() || null;
   const categoryRaw = String(formData.get("category_id") ?? "").trim();
   const category_id = categoryRaw || null;
@@ -65,12 +64,14 @@ export async function saveBlogPost(
   if (hasFile) {
     const safe = file!.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${Date.now()}-${safe}`;
-    const { error: upErr } = await supabase.storage
-      .from("blog")
-      .upload(path, file!, { upsert: false });
-    if (upErr) {
-      console.error(upErr);
-      return { ok: false, error: formatUploadErrorMessage(upErr.message) };
+    const up = await uploadObject({
+      bucket: "blog",
+      path,
+      file: file!,
+      supabaseFallback: supabase,
+    });
+    if (!up.ok) {
+      return { ok: false, error: formatUploadErrorMessage(up.error) };
     }
     cover_image_path = path;
   }
@@ -167,7 +168,11 @@ export async function deleteBlogPost(formData: FormData) {
     .single();
 
   if (row?.cover_image_path) {
-    await supabase.storage.from("blog").remove([row.cover_image_path]);
+    await removeObjects({
+      bucket: "blog",
+      paths: [row.cover_image_path],
+      supabaseFallback: supabase,
+    });
   }
 
   await supabase.from("blog_posts").delete().eq("id", id);
@@ -176,4 +181,37 @@ export async function deleteBlogPost(formData: FormData) {
   if (row?.slug) revalidatePath(`/blog/${row.slug}`);
   revalidatePath("/admin/blog");
   redirect("/admin/blog");
+}
+
+export async function updateBlogPostContent(
+  _prev: { ok: false; error: string } | { ok: true } | undefined,
+  formData: FormData,
+) {
+  const { supabase } = await requireAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  const slug = String(formData.get("slug") ?? "").trim();
+  const content = sanitizeBlogHtml(String(formData.get("content") ?? ""));
+
+  if (!id || !slug) {
+    return { ok: false as const, error: "Ungültiger Beitrag." };
+  }
+
+  const { error } = await supabase
+    .from("blog_posts")
+    .update({
+      content,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    return { ok: false as const, error: "Speichern fehlgeschlagen." };
+  }
+
+  revalidatePath("/blog");
+  revalidatePath(`/blog/${slug}`);
+  revalidatePath("/admin/blog");
+  revalidatePath(`/admin/blog/${id}`);
+  return { ok: true as const };
 }

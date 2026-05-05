@@ -2,6 +2,7 @@
 
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
+import { removeObjects, uploadObject } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -16,7 +17,11 @@ export async function deleteListing(formData: FormData) {
     .single();
   const paths = listing?.gallery_paths as string[] | undefined;
   if (paths?.length) {
-    await supabase.storage.from("listings").remove(paths);
+    await removeObjects({
+      bucket: "listings",
+      paths,
+      supabaseFallback: supabase,
+    });
   }
   await supabase.from("listings").delete().eq("id", id);
   revalidatePath("/");
@@ -170,10 +175,13 @@ export async function saveListing(
     if (!file || typeof file === "string" || file.size === 0) continue;
     const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${listingId}/${Date.now()}-${safe}`;
-    const { error: upErr } = await supabase.storage
-      .from("listings")
-      .upload(path, file, { upsert: false });
-    if (!upErr) newPaths.push(path);
+    const up = await uploadObject({
+      bucket: "listings",
+      path,
+      file,
+      supabaseFallback: supabase,
+    });
+    if (up.ok) newPaths.push(path);
   }
 
   if (newPaths.length) {

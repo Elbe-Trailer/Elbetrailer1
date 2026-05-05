@@ -2,6 +2,7 @@
 
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
+import { removeObjects, uploadObject } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -27,11 +28,14 @@ export async function saveBanner(
   if (hasFile) {
     const safe = file!.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${Date.now()}-${safe}`;
-    const { error: upErr } = await supabase.storage
-      .from("banners")
-      .upload(path, file!, { upsert: false });
-    if (upErr) {
-      console.error(upErr);
+    const up = await uploadObject({
+      bucket: "banners",
+      path,
+      file: file!,
+      supabaseFallback: supabase,
+    });
+    if (!up.ok) {
+      console.error(up.error);
       return { ok: false, error: "Upload fehlgeschlagen." };
     }
     image_path = path;
@@ -93,7 +97,11 @@ export async function deleteBanner(formData: FormData) {
     .eq("id", id)
     .single();
   if (row?.image_path) {
-    await supabase.storage.from("banners").remove([row.image_path]);
+    await removeObjects({
+      bucket: "banners",
+      paths: [row.image_path],
+      supabaseFallback: supabase,
+    });
   }
   await supabase.from("banner_slides").delete().eq("id", id);
   revalidatePath("/");

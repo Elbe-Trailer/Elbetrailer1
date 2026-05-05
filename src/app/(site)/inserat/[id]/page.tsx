@@ -1,13 +1,12 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ContentContainer from "@/components/ContentContainer";
 import { createClient } from "@/lib/supabase/server";
 import { formatEurFromCents, formatMm } from "@/lib/format";
-import { publicStorageUrl } from "@/lib/storage";
 import { resolveCustomerListingMode } from "@/lib/listingCustomerMode";
 import type { ConfiguratorAccessory } from "./Configurator";
 import InquiryForm from "./InquiryForm";
+import ListingGallery from "./ListingGallery";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -202,38 +201,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       <div className="grid gap-8 lg:grid-cols-2">
         <div>
           {gallery.length ? (
-            <div className="space-y-4">
-              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
-                <Image
-                  src={publicStorageUrl("listings", gallery[0])}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  priority
-                  sizes="(max-width:1024px) 100vw, 50vw"
-                  unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
-                />
-              </div>
-              {gallery.length > 1 ? (
-                <div className="grid grid-cols-4 gap-2">
-                  {gallery.slice(1).map((path) => (
-                    <div
-                      key={path}
-                      className="relative aspect-[4/3] overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
-                    >
-                      <Image
-                        src={publicStorageUrl("listings", path)}
-                        alt=""
-                        fill
-                        className="object-cover"
-                        sizes="120px"
-                        unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+            <ListingGallery gallery={gallery} />
           ) : (
             <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-zinc-100 text-zinc-400 dark:bg-zinc-800">
               Kein Bild

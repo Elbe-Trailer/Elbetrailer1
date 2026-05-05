@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/admin";
-import { publicStorageUrl } from "@/lib/storage";
 import {
   normalizeAccessoriesForListingConfig,
   type RawAccessoryForListingRow,
@@ -9,7 +8,6 @@ import {
 import type { Listing } from "@/types/database";
 import { deleteListing } from "../actions";
 import ListingForm from "../ListingForm";
-import Image from "next/image";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -59,36 +57,12 @@ export default async function EditListingPage({ params }: Props) {
         </Link>
       </div>
 
-      {l.gallery_paths?.length ? (
-        <div>
-          <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Aktuelle Bilder
-          </p>
-          <ul className="flex flex-wrap gap-2">
-            {l.gallery_paths.map((path) => (
-              <li
-                key={path}
-                className="relative h-20 w-28 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
-              >
-                <Image
-                  src={publicStorageUrl("listings", path)}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="112px"
-                  unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
-                />
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
       <ListingForm
         listing={l}
         linked={la ?? []}
         categories={categories ?? []}
         accessories={accessoriesForForm}
+        currentGalleryPaths={l.gallery_paths ?? []}
       />
 
       <form action={deleteListing} className="border-t border-red-200 pt-8 dark:border-red-900">

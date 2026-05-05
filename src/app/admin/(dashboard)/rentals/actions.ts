@@ -2,6 +2,7 @@
 
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
+import { removeObjects } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -273,7 +274,11 @@ export async function deleteRentalAccessory(formData: FormData) {
     .eq("accessory_id", id);
 
   if (row.image_path) {
-    await supabase.storage.from("accessories").remove([row.image_path]);
+    await removeObjects({
+      bucket: "accessories",
+      paths: [row.image_path],
+      supabaseFallback: supabase,
+    });
   }
 
   const { error } = await supabase.from("accessories").delete().eq("id", id);
