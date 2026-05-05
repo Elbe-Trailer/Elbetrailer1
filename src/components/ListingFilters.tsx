@@ -95,14 +95,14 @@ function FilterChipMultiSelect({
       <button
         type="button"
         onClick={() => onToggle(chipKey)}
-        className="pr-5"
+        className="pr-5 text-inherit outline-none"
       >
         {label}
         {selectedValues.length ? ` (${selectedValues.length})` : ""}
       </button>
       <span className="pointer-events-none absolute right-3 text-xs">v</span>
       {isOpen ? (
-        <div className="absolute left-0 top-[110%] z-50 min-w-56 rounded-lg border border-zinc-200 bg-white p-2 text-zinc-800 shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-56 rounded-lg border border-zinc-200 bg-white p-2 text-zinc-800 shadow-xl dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
           <div className="max-h-56 overflow-auto space-y-1">
             {options.map((opt) => (
               <label key={opt.value} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
@@ -216,7 +216,7 @@ function SliderChipPopover({
         <span>v</span>
       </button>
       {isOpen ? (
-        <div className="absolute left-0 top-[110%] z-50 w-[min(92vw,560px)] rounded-xl border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-[min(92vw,560px)] rounded-xl border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
           {children}
         </div>
       ) : null}
@@ -232,6 +232,7 @@ export default function ListingFilters({
   filterOptions,
   showCategoryFilter = true,
 }: Props) {
+  const rootRef = useRef<HTMLFormElement | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const currentSearchParams = useSearchParams();
@@ -250,8 +251,20 @@ export default function ListingFilters({
     | "price"
   >(null);
 
-  const togglePanel = (panel: NonNullable<typeof openPanel>) => {
-    setOpenPanel((prev) => (prev === panel ? null : panel));
+  const togglePanel = (panel: string) => {
+    const allowed = new Set<NonNullable<typeof openPanel>>([
+      "grossWeight",
+      "payload",
+      "emptyWeight",
+      "exteriorLength",
+      "exteriorWidth",
+      "loadingLength",
+      "loadingWidth",
+      "price",
+    ]);
+    if (!allowed.has(panel as NonNullable<typeof openPanel>)) return;
+    const p = panel as NonNullable<typeof openPanel>;
+    setOpenPanel((prev) => (prev === p ? null : p));
     setOpenDropdown(null);
   };
   const toggleDropdown = (key: string) => {
@@ -330,8 +343,34 @@ export default function ListingFilters({
     };
   }, []);
 
+  useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      if (!rootRef.current) return;
+      const target = event.target as Node;
+      if (!rootRef.current.contains(target)) {
+        setOpenDropdown(null);
+        setOpenPanel(null);
+      }
+    };
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenDropdown(null);
+        setOpenPanel(null);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, []);
+
   return (
     <form
+      ref={rootRef}
       onSubmit={onSubmit}
       onChange={(event) => {
         if (debounceRef.current) clearTimeout(debounceRef.current);

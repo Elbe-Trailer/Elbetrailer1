@@ -160,7 +160,15 @@ export default async function AnhaengerPage({ searchParams }: Props) {
 
   const { data: listings } = await query.order("created_at", { ascending: false });
 
-  const list = (listings ?? []) as ListingWithCategory[];
+  const list: ListingWithCategory[] = (listings ?? []).map((row) => {
+    const c = row.categories as
+      | { name: string; slug: string }
+      | { name: string; slug: string }[]
+      | null
+      | undefined;
+    const categories = Array.isArray(c) ? c[0] ?? null : c ?? null;
+    return { ...row, categories };
+  });
 
   return (
     <ContentContainer>

@@ -90,6 +90,30 @@ export type BannerSlide = {
   active: boolean;
 };
 
+export type BlogCategory = {
+  id: string;
+  slug: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at?: string;
+};
+
+export type BlogPost = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  content: string;
+  author: string | null;
+  cover_image_path: string | null;
+  category_id: string | null;
+  published: boolean;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ListingHighlight = {
   listing_id: string;
   position: number;

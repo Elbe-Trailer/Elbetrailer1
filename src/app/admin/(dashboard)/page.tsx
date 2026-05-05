@@ -7,7 +7,7 @@ export default function AdminHomePage() {
         Dashboard
       </h1>
       <p className="text-zinc-600 dark:text-zinc-400">
-        Verwalten Sie Inserate, Zubehör, Banner und Portfolio-Einträge.
+        Verwalten Sie Inserate, Zubehör, Banner, Portfolio-Einträge und Blog-Beiträge.
       </p>
       <ul className="grid gap-3 sm:grid-cols-2">
         <Link
@@ -51,6 +51,15 @@ export default function AdminHomePage() {
         >
           <span className="font-medium">Anfragen</span>
           <p className="mt-1 text-sm text-zinc-500">Eingehende Kundenanfragen</p>
+        </Link>
+        <Link
+          href="/admin/blog"
+          className="rounded-xl border border-zinc-200 p-4 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          <span className="font-medium">Blog</span>
+          <p className="mt-1 text-sm text-zinc-500">
+            Beiträge und Kategorien pflegen
+          </p>
         </Link>
       </ul>
     </div>

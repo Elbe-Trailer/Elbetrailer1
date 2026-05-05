@@ -81,6 +81,14 @@ export default async function Footer() {
                   Kategorieüberblick
                 </Link>
               </li>
+              <li>
+                <Link
+                  className="text-zinc-800 hover:underline dark:text-zinc-200"
+                  href="/blog"
+                >
+                  Blog
+                </Link>
+              </li>
             </ul>
           </div>
 

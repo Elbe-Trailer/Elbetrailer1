@@ -167,7 +167,7 @@ export default function HeaderNav({ categories }: Props) {
               Anhänger mieten
             </Link>
             <Link
-              href="/ueber-uns"
+              href="/blog"
               className="rounded px-2 py-2 text-sm font-medium hover:bg-white/10 xl:px-3"
             >
               Blog
@@ -279,7 +279,7 @@ export default function HeaderNav({ categories }: Props) {
                 Anhänger mieten
               </Link>
               <Link
-                href="/ueber-uns"
+                href="/blog"
                 className="block rounded-md px-3 py-2.5 hover:bg-zinc-100"
                 onClick={() => setMobileOpen(false)}
               >
