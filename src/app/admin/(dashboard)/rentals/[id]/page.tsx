@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/admin";
+import { formatEurFromCents } from "@/lib/format";
+import { calculateRentalPrice } from "@/lib/rentalPricing";
 import RentalCalendarManager from "./RentalCalendarManager";
 import RentalUnitSettingsForm from "./RentalUnitSettingsForm";
 import {
@@ -17,7 +19,9 @@ export default async function AdminRentalDetailPage({ params }: Props) {
 
   const { data: rentalUnit } = await supabase
     .from("rental_units")
-    .select("id, listing_id, active, min_rental_days, listings ( id, title )")
+    .select(
+      "id, listing_id, active, min_rental_days, listings ( id, title, daily_rate_cents )",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -32,11 +36,15 @@ export default async function AdminRentalDetailPage({ params }: Props) {
     supabase
       .from("rental_bookings")
       .select(
-        "id, status, start_date, end_date, customer_name, customer_email, customer_phone, customer_message, created_at",
+        "id, status, start_date, end_date, customer_name, customer_email, customer_phone, customer_message, created_at, inquiries ( accessory_selections )",
       )
       .eq("rental_unit_id", id)
       .order("created_at", { ascending: false }),
   ]);
+  const { data: globalDiscountTiers } = await supabase
+    .from("rental_discount_tiers")
+    .select("min_days, discount_percent")
+    .order("min_days", { ascending: true });
 
   const { data: rentalCategory } = await supabase
     .from("accessory_categories")
@@ -70,10 +78,47 @@ export default async function AdminRentalDetailPage({ params }: Props) {
   const listing =
     joinedListings && typeof joinedListings === "object"
       ? Array.isArray(joinedListings)
-        ? (joinedListings[0] as { id: string; title: string } | undefined) ??
+        ? (joinedListings[0] as
+            | { id: string; title: string; daily_rate_cents?: number | null }
+            | undefined) ??
           null
-        : (joinedListings as { id: string; title: string })
+        : (joinedListings as {
+            id: string;
+            title: string;
+            daily_rate_cents?: number | null;
+          })
       : null;
+  const selectedAccessoryIds = Array.from(
+    new Set(
+      (bookings ?? []).flatMap((booking) => {
+        const inquiry = booking.inquiries;
+        const selections =
+          inquiry && typeof inquiry === "object" && "accessory_selections" in inquiry
+            ? (inquiry as {
+                accessory_selections?: Array<{ accessory_id: string; quantity: number }>;
+              }).accessory_selections
+            : [];
+        return Array.isArray(selections)
+          ? selections.map((selection) => selection.accessory_id)
+          : [];
+      }),
+    ),
+  );
+  const accessoryDailyById = new Map<string, number>();
+  if (selectedAccessoryIds.length > 0) {
+    const { data: selectedAccessories } = await supabase
+      .from("accessories")
+      .select("id, price_adjustment_cents")
+      .in("id", selectedAccessoryIds);
+    for (const accessory of selectedAccessories ?? []) {
+      accessoryDailyById.set(
+        String(accessory.id),
+        typeof accessory.price_adjustment_cents === "number"
+          ? accessory.price_adjustment_cents
+          : 0,
+      );
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -196,6 +241,54 @@ export default async function AdminRentalDetailPage({ params }: Props) {
                     <p className="mt-1 text-sm">
                       Zeitraum: {booking.start_date} bis {booking.end_date}
                     </p>
+                    {(() => {
+                      const inquiry = booking.inquiries;
+                      const selections =
+                        inquiry &&
+                        typeof inquiry === "object" &&
+                        "accessory_selections" in inquiry
+                          ? (inquiry as {
+                              accessory_selections?: Array<{
+                                accessory_id: string;
+                                quantity: number;
+                              }>;
+                            }).accessory_selections
+                          : [];
+                      const accessoryDailyCents = Array.isArray(selections)
+                        ? selections.reduce((sum, selection) => {
+                            const qty = Math.max(0, Number(selection.quantity) || 0);
+                            const item = accessoryDailyById.get(selection.accessory_id) ?? 0;
+                            return sum + item * qty;
+                          }, 0)
+                        : 0;
+                      const perDayCents =
+                        (listing?.daily_rate_cents ?? 0) + accessoryDailyCents;
+                      const rentalDays =
+                        Math.floor(
+                          (new Date(`${booking.end_date}T00:00:00Z`).getTime() -
+                            new Date(`${booking.start_date}T00:00:00Z`).getTime()) /
+                            (1000 * 60 * 60 * 24),
+                        ) + 1;
+                      const priceWithDiscount = calculateRentalPrice(
+                        perDayCents,
+                        rentalDays,
+                        globalDiscountTiers ?? [],
+                      );
+                      return (
+                        <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+                          Endpreis:{" "}
+                          <span className="font-semibold">
+                            {formatEurFromCents(priceWithDiscount.finalTotalCents)}
+                          </span>
+                          {priceWithDiscount.discountPercentApplied > 0 ? (
+                            <span className="text-emerald-700 dark:text-emerald-300">
+                              {" "}
+                              (inkl. {priceWithDiscount.discountPercentApplied}% Rabatt)
+                            </span>
+                          ) : null}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <form action={updateBookingStatus} className="flex items-center gap-2">
                     <input type="hidden" name="id" value={booking.id} />

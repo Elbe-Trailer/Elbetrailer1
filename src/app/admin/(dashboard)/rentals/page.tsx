@@ -4,6 +4,7 @@ import {
   saveRentalUnitAccessories,
   updateRentalAccessory,
 } from "./actions";
+import GlobalRentalDiscountForm from "./GlobalRentalDiscountForm";
 import RentalUnitCreateForm from "./RentalUnitCreateForm";
 import RentalAccessoriesManager from "./RentalAccessoriesManager";
 import RentalAccessoryDeleteButton from "./RentalAccessoryDeleteButton";
@@ -25,7 +26,9 @@ export default async function AdminRentalsPage({ searchParams }: PageProps) {
     await Promise.all([
     supabase
       .from("rental_units")
-      .select("id, active, min_rental_days, listing_id, created_at, listings ( title, published )")
+      .select(
+        "id, active, min_rental_days, listing_id, created_at, listings ( title, published )",
+      )
       .order("created_at", { ascending: false }),
     supabase
       .from("listings")
@@ -40,6 +43,10 @@ export default async function AdminRentalsPage({ searchParams }: PageProps) {
           .order("name")
       : Promise.resolve({ data: [] }),
     ]);
+  const { data: discountTiers } = await supabase
+    .from("rental_discount_tiers")
+    .select("min_days, discount_percent")
+    .order("min_days", { ascending: true });
   const listingIds = (rentalUnits ?? []).map((unit) => unit.listing_id);
   const { data: linkedAccessories } = listingIds.length
     ? await supabase
@@ -298,6 +305,16 @@ export default async function AdminRentalsPage({ searchParams }: PageProps) {
             })}
           </div>
         )}
+      </section>
+
+      <section className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+          Globale Rabattierung (alle Mietinserate)
+        </h2>
+        <p className="text-sm text-zinc-500">
+          Diese Staffel gilt automatisch bei allen Mietanfragen und Buchungen.
+        </p>
+        <GlobalRentalDiscountForm tiers={discountTiers ?? []} />
       </section>
     </div>
   );

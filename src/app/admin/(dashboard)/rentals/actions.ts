@@ -51,6 +51,22 @@ function sanitizeDate(value: FormDataEntryValue | null): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
 }
 
+function parseOptionalMinDays(value: FormDataEntryValue | null): number | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 2) return null;
+  return parsed;
+}
+
+function parseDiscountPercent(value: FormDataEntryValue | null): number {
+  const raw = String(value ?? "").trim();
+  if (!raw) return 0;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.min(100, parsed);
+}
+
 export async function createRentalUnit(
   _prev: RentalFormActionState,
   formData: FormData,
@@ -119,6 +135,49 @@ export async function updateRentalUnit(
   revalidatePath("/admin/rentals");
   revalidatePath(`/admin/rentals/${id}`);
   redirect(withAdminSavedParam(`/admin/rentals/${id}`));
+}
+
+export async function updateGlobalRentalDiscount(
+  _prev: RentalFormActionState,
+  formData: FormData,
+): Promise<RentalFormActionState> {
+  const { supabase } = await requireAdmin();
+  const daysValues = formData.getAll("tier_min_days");
+  const percentValues = formData.getAll("tier_discount_percent");
+  const tiers = daysValues
+    .map((value, idx) => {
+      const minDays = parseOptionalMinDays(value);
+      const discountPercent = parseDiscountPercent(percentValues[idx] ?? null);
+      if (minDays == null || discountPercent <= 0) return null;
+      return { min_days: minDays, discount_percent: discountPercent };
+    })
+    .filter((row): row is { min_days: number; discount_percent: number } => row != null)
+    .sort((a, b) => a.min_days - b.min_days);
+  const uniqueByDay = new Map<number, { min_days: number; discount_percent: number }>();
+  for (const tier of tiers) uniqueByDay.set(tier.min_days, tier);
+  const normalizedTiers = [...uniqueByDay.values()];
+
+  const { error: deleteError } = await supabase
+    .from("rental_discount_tiers")
+    .delete()
+    .gte("min_days", 2);
+  if (deleteError) {
+    console.error(deleteError);
+    return { ok: false, error: "Globale Rabattstaffeln konnten nicht gespeichert werden." };
+  }
+  if (normalizedTiers.length === 0) {
+    revalidatePath("/admin/rentals");
+    revalidatePath("/admin/inquiries");
+    return { ok: true };
+  }
+  const { error } = await supabase.from("rental_discount_tiers").insert(normalizedTiers);
+  if (error) {
+    console.error(error);
+    return { ok: false, error: "Globale Rabattstaffeln konnten nicht gespeichert werden." };
+  }
+  revalidatePath("/admin/rentals");
+  revalidatePath("/admin/inquiries");
+  return { ok: true };
 }
 
 export async function addCalendarBlock(

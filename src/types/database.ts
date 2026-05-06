@@ -82,14 +82,6 @@ export type ListingAccessoryRow = {
   max_quantity: number;
 };
 
-export type BannerSlide = {
-  id: string;
-  image_path: string;
-  sort_order: number;
-  link_url: string | null;
-  active: boolean;
-};
-
 export type BlogCategory = {
   id: string;
   slug: string;

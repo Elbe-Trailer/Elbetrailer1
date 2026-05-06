@@ -1,27 +1,39 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ContentContainer from "@/components/ContentContainer";
+import { getOptionalAdmin } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatEurFromCents, formatMm } from "@/lib/format";
 import { resolveCustomerListingMode } from "@/lib/listingCustomerMode";
+import type { AccessorySelection } from "@/types/database";
 import type { ConfiguratorAccessory } from "./Configurator";
 import InquiryForm from "./InquiryForm";
 import ListingGallery from "./ListingGallery";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ansicht?: string | string[] }>;
+  searchParams: Promise<{
+    ansicht?: string | string[];
+    anfrage?: string | string[];
+  }>;
 };
 
 export default async function ListingPage({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = await searchParams;
   const ansichtRaw = sp.ansicht;
+  const inquiryRaw = sp.anfrage;
   const ansicht =
     typeof ansichtRaw === "string"
       ? ansichtRaw
       : Array.isArray(ansichtRaw)
         ? ansichtRaw[0]
+        : undefined;
+  const inquiryId =
+    typeof inquiryRaw === "string"
+      ? inquiryRaw
+      : Array.isArray(inquiryRaw)
+        ? inquiryRaw[0]
         : undefined;
 
   const supabase = await createClient();
@@ -41,6 +53,26 @@ export default async function ListingPage({ params, searchParams }: Props) {
     listing.listing_type as "kauf" | "miete" | "kauf_und_miete",
     ansicht,
   );
+  let initialSelections: AccessorySelection[] = [];
+  let initialStartDate: string | null = null;
+  let initialEndDate: string | null = null;
+  if (inquiryId) {
+    const admin = await getOptionalAdmin();
+    if (admin) {
+      const { data: inquiry } = await admin.supabase
+        .from("inquiries")
+        .select("listing_id, accessory_selections, start_date, end_date")
+        .eq("id", inquiryId)
+        .maybeSingle();
+      if (inquiry?.listing_id === listing.id) {
+        initialSelections = Array.isArray(inquiry.accessory_selections)
+          ? (inquiry.accessory_selections as AccessorySelection[])
+          : [];
+        initialStartDate = inquiry.start_date ?? null;
+        initialEndDate = inquiry.end_date ?? null;
+      }
+    }
+  }
 
   const { data: category } = await supabase
     .from("categories")
@@ -57,40 +89,39 @@ export default async function ListingPage({ params, searchParams }: Props) {
   let accessories: ConfiguratorAccessory[] = [];
   let rentalUnitId: string | null = null;
   let minRentalDays = 1;
+  let discountTiers: Array<{ min_days: number; discount_percent: number }> = [];
   let unavailableRanges: Array<{ start_date: string; end_date: string }> = [];
   const loadRentalFlowData = customerMode === "miete";
 
-  let rentalAccessoryCategoryId: string | null = null;
-  if (loadRentalFlowData) {
-    const { data: rentalAccessoryCategory } = await supabase
-      .from("accessory_categories")
-      .select("id")
-      .ilike("name", "mieten")
-      .eq("is_active", true)
-      .maybeSingle();
-    rentalAccessoryCategoryId = rentalAccessoryCategory?.id ?? null;
-  }
+  const { data: rentalAccessoryCategory } = await supabase
+    .from("accessory_categories")
+    .select("id")
+    .ilike("name", "mieten")
+    .eq("is_active", true)
+    .maybeSingle();
+  const rentalAccessoryCategoryId = rentalAccessoryCategory?.id ?? null;
 
   if (accIds.length) {
-    const shouldLoadRentalAccessories =
-      !loadRentalFlowData || rentalAccessoryCategoryId !== null;
-    let accs: unknown[] = [];
-    if (shouldLoadRentalAccessories) {
-      let accessoriesQuery = supabase
-        .from("accessories")
-        .select(
-          "id, name, article_number, brand, description, price_adjustment_cents, image_path, active, category_id, accessory_categories(name, sort_order, allows_multiple)",
-        )
-        .in("id", accIds)
-        .eq("active", true);
+    let accessoriesQuery = supabase
+      .from("accessories")
+      .select(
+        "id, name, article_number, brand, description, price_adjustment_cents, image_path, active, category_id, accessory_categories(name, sort_order, allows_multiple)",
+      )
+      .in("id", accIds)
+      .eq("active", true);
 
-      if (loadRentalFlowData && rentalAccessoryCategoryId) {
-        accessoriesQuery = accessoriesQuery.eq("category_id", rentalAccessoryCategoryId);
-      }
-
-      const { data } = await accessoriesQuery;
-      accs = data ?? [];
+    if (loadRentalFlowData && rentalAccessoryCategoryId) {
+      accessoriesQuery = accessoriesQuery.eq("category_id", rentalAccessoryCategoryId);
     }
+
+    const { data: accsData } = await accessoriesQuery;
+    const accs = (accsData ?? []).filter((row) => {
+      if (!rentalAccessoryCategoryId) return true;
+      const categoryId = (row as { category_id: string | null }).category_id;
+      return loadRentalFlowData
+        ? categoryId === rentalAccessoryCategoryId
+        : categoryId !== rentalAccessoryCategoryId;
+    });
 
     const maxMap = new Map(
       (la ?? []).map((r) => [r.accessory_id, r.max_quantity]),
@@ -153,6 +184,29 @@ export default async function ListingPage({ params, searchParams }: Props) {
     if (rentalUnit) {
       rentalUnitId = rentalUnit.id;
       minRentalDays = rentalUnit.min_rental_days ?? 1;
+      const { data: tiers } = await supabase
+        .from("rental_discount_tiers")
+        .select("min_days, discount_percent")
+        .order("min_days", { ascending: true });
+      discountTiers = tiers ?? [];
+      if (discountTiers.length === 0) {
+        const { data: fallbackPricing } = await supabase
+          .from("rental_pricing_settings")
+          .select("discount_from_days, discount_percent")
+          .eq("id", true)
+          .maybeSingle();
+        if (
+          fallbackPricing?.discount_from_days != null &&
+          (fallbackPricing.discount_percent ?? 0) > 0
+        ) {
+          discountTiers = [
+            {
+              min_days: fallbackPricing.discount_from_days,
+              discount_percent: fallbackPricing.discount_percent ?? 0,
+            },
+          ];
+        }
+      }
 
       const [{ data: blocks }, { data: bookings }] = await Promise.all([
         supabase
@@ -163,7 +217,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
           .from("rental_bookings")
           .select("start_date, end_date")
           .eq("rental_unit_id", rentalUnit.id)
-          .in("status", ["pending", "confirmed"]),
+          .eq("status", "confirmed"),
       ]);
 
       unavailableRanges = [...(blocks ?? []), ...(bookings ?? [])];
@@ -332,7 +386,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
             customerMode={customerMode}
             rentalUnitId={rentalUnitId}
             minRentalDays={minRentalDays}
+            discountTiers={discountTiers}
             unavailableRanges={unavailableRanges}
+            initialSelections={initialSelections}
+            initialStartDate={initialStartDate}
+            initialEndDate={initialEndDate}
           />
         </div>
       </section>

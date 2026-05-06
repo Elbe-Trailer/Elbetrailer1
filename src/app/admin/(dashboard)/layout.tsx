@@ -9,7 +9,6 @@ const nav = [
   { href: "/admin/listings", label: "Inserate" },
   { href: "/admin/rentals", label: "Anhänger mieten" },
   { href: "/admin/accessories", label: "Zubehör" },
-  { href: "/admin/banners", label: "Banner" },
   { href: "/admin/highlights", label: "Portfolio" },
   { href: "/admin/blog", label: "Blog" },
   { href: "/admin/blog/categories", label: "Blog-Kategorien" },
@@ -23,7 +22,26 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireAdmin();
+  const { supabase } = await requireAdmin();
+  const [inquiriesNewCountResult, contactInquiriesNewCountResult] = await Promise.all([
+    supabase
+      .from("inquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "neu"),
+    supabase
+      .from("contact_inquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "neu"),
+  ]);
+  const inquiriesNewCount = inquiriesNewCountResult.error?.message?.includes("status")
+    ? 0
+    : (inquiriesNewCountResult.count ?? 0);
+  const contactInquiriesNewCount = contactInquiriesNewCountResult.error?.message?.includes(
+    "status",
+  )
+    ? 0
+    : (contactInquiriesNewCountResult.count ?? 0);
+  const newInquiriesCount = inquiriesNewCount + contactInquiriesNewCount;
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950">
@@ -37,9 +55,14 @@ export default async function DashboardLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-lg px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.href === "/admin/inquiries" && newInquiriesCount > 0 ? (
+                  <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-amber-600 px-2 py-0.5 text-xs font-semibold text-white">
+                    {newInquiriesCount}
+                  </span>
+                ) : null}
               </Link>
             ))}
           </nav>

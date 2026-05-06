@@ -145,7 +145,7 @@ export async function submitInquiry(
           .from("rental_bookings")
           .select("id")
           .eq("rental_unit_id", rentalUnit.id)
-          .in("status", ["pending", "confirmed"])
+          .eq("status", "confirmed")
           .lte("start_date", endDate)
           .gte("end_date", startDate)
           .limit(1),

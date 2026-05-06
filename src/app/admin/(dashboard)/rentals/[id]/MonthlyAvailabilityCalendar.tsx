@@ -70,7 +70,7 @@ export default function MonthlyAvailabilityCalendar({
     const ranges = [
       ...blocks.map((block) => [block.start_date, block.end_date] as const),
       ...bookings
-        .filter((booking) => booking.status !== "cancelled")
+        .filter((booking) => booking.status === "confirmed")
         .map((booking) => [booking.start_date, booking.end_date] as const),
     ];
 

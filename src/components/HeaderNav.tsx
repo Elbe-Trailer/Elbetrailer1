@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useId, useState } from "react";
+import { getCategoryIconPath, getCategoryIconScale } from "@/lib/categoryIcons";
 
 export type NavCategory = { slug: string; name: string };
 
@@ -110,16 +112,32 @@ export default function HeaderNav({ categories }: Props) {
                     </p>
                   ) : (
                     <ul>
-                      {categories.map((c) => (
-                        <li key={c.slug}>
-                          <Link
-                            href={`/kategorie/${c.slug}`}
-                            className="block px-4 py-2.5 hover:bg-zinc-50"
-                          >
-                            {c.name}
-                          </Link>
-                        </li>
-                      ))}
+                      {categories.map((c) => {
+                        const iconPath = getCategoryIconPath(c);
+                        const iconScale = getCategoryIconScale(c);
+                        return (
+                          <li key={c.slug}>
+                            <Link
+                              href={`/kategorie/${c.slug}`}
+                              className="flex items-center gap-2 px-4 py-2.5 hover:bg-zinc-50"
+                            >
+                              {iconPath ? (
+                                <span className="flex h-6 w-12 shrink-0 items-center justify-center overflow-hidden">
+                                  <Image
+                                    src={iconPath}
+                                    alt=""
+                                    width={36}
+                                    height={14}
+                                    className="h-auto w-full object-contain object-center"
+                                    style={{ transform: `scale(${Math.min(iconScale, 1.25)})`, transformOrigin: "center" }}
+                                  />
+                                </span>
+                              ) : null}
+                              {c.name}
+                            </Link>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                   <div className="border-t border-zinc-100">
@@ -216,16 +234,32 @@ export default function HeaderNav({ categories }: Props) {
               >
                 Alle Anhänger
               </Link>
-              {categories.map((c) => (
-                <Link
-                  key={c.slug}
-                  href={`/kategorie/${c.slug}`}
-                  className="block rounded-md px-3 py-2.5 pl-6 hover:bg-zinc-100"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {c.name}
-                </Link>
-              ))}
+              {categories.map((c) => {
+                const iconPath = getCategoryIconPath(c);
+                const iconScale = getCategoryIconScale(c);
+                return (
+                  <Link
+                    key={c.slug}
+                    href={`/kategorie/${c.slug}`}
+                    className="flex items-center gap-2 rounded-md px-3 py-2.5 pl-6 hover:bg-zinc-100"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {iconPath ? (
+                      <span className="flex h-6 w-12 shrink-0 items-center justify-center overflow-hidden">
+                        <Image
+                          src={iconPath}
+                          alt=""
+                          width={36}
+                          height={14}
+                          className="h-auto w-full object-contain object-center"
+                          style={{ transform: `scale(${Math.min(iconScale, 1.25)})`, transformOrigin: "center" }}
+                        />
+                      </span>
+                    ) : null}
+                    {c.name}
+                  </Link>
+                );
+              })}
               {categories.length === 0 ? (
                 <p className="px-3 py-2 text-sm text-zinc-500">
                   Noch keine Kategorien in der Datenbank.

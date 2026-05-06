@@ -1,176 +1,47 @@
 import Link from "next/link";
-import BannerCarousel from "@/components/BannerCarousel";
+import Image from "next/image";
 import FullBleed from "@/components/FullBleed";
 import ListingCard from "@/components/ListingCard";
+import {
+  getCategoryIconKey,
+  getCategoryIconPath,
+  getCategoryIconScale,
+} from "@/lib/categoryIcons";
 import { createClient } from "@/lib/supabase/server";
-import type { BannerSlide, Listing } from "@/types/database";
+import type { Listing } from "@/types/database";
 
 type HomeCategory = { slug: string; name: string };
 
 function TrailerSketch({ category }: { category: HomeCategory }) {
-  const slug = category.slug.toLowerCase();
-  const stroke = "currentColor";
-  if (slug === "kipper") {
+  const iconPath = getCategoryIconPath(category);
+  const iconKey = getCategoryIconKey(category);
+  const iconScale = getCategoryIconScale(category);
+  const iconTranslateX = iconKey === "bootstrailer" ? "-6%" : "0%";
+  const iconTranslateY = iconKey === "bootstrailer" ? "10%" : "0%";
+
+  if (iconPath) {
     return (
-      <svg
-        viewBox="0 0 120 56"
-        className="h-10 w-24 text-zinc-500 transition group-hover:text-brand dark:text-zinc-400 dark:group-hover:text-red-400"
-        aria-hidden
-      >
-        <line x1="8" y1="40" x2="112" y2="40" stroke={stroke} strokeWidth="2" />
-        <rect
-          x="30"
-          y="18"
-          width="48"
-          height="16"
-          rx="2"
-          fill="none"
-          stroke={stroke}
-          strokeWidth="2"
-          transform="rotate(-10 30 18)"
+      <div className="flex h-full w-full items-center justify-center overflow-hidden">
+        <Image
+          src={iconPath}
+          alt=""
+          width={320}
+          height={120}
+          className="h-auto max-h-full w-full max-w-[248px] object-contain object-center sm:max-w-[280px] lg:max-w-[300px]"
+          sizes="(max-width: 640px) 48vw, (max-width: 1024px) 264px, 312px"
+          style={{
+            transform: `translate(${iconTranslateX}, ${iconTranslateY}) scale(${iconScale})`,
+            transformOrigin: "center",
+          }}
         />
-        <line x1="16" y1="40" x2="30" y2="30" stroke={stroke} strokeWidth="2" />
-        <line x1="30" y1="30" x2="38" y2="30" stroke={stroke} strokeWidth="2" />
-        <circle cx="40" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-        <circle cx="84" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-      </svg>
+      </div>
     );
   }
 
-  if (slug === "maschinen") {
-    return (
-      <svg
-        viewBox="0 0 120 56"
-        className="h-10 w-24 text-zinc-500 transition group-hover:text-brand dark:text-zinc-400 dark:group-hover:text-red-400"
-        aria-hidden
-      >
-        <line x1="8" y1="40" x2="112" y2="40" stroke={stroke} strokeWidth="2" />
-        <rect x="24" y="24" width="62" height="10" rx="2" fill="none" stroke={stroke} strokeWidth="2" />
-        <line x1="10" y1="40" x2="24" y2="30" stroke={stroke} strokeWidth="2" />
-        <line x1="86" y1="34" x2="100" y2="28" stroke={stroke} strokeWidth="2" />
-        <line x1="100" y1="28" x2="108" y2="28" stroke={stroke} strokeWidth="2" />
-        <rect x="46" y="17" width="16" height="8" rx="1.5" fill="none" stroke={stroke} strokeWidth="2" />
-        <path d="M62 21 L72 17" fill="none" stroke={stroke} strokeWidth="2" />
-        <line x1="72" y1="17" x2="77" y2="19" stroke={stroke} strokeWidth="2" />
-        <circle cx="50" cy="25" r="2" fill="none" stroke={stroke} strokeWidth="2" />
-        <circle cx="60" cy="25" r="2" fill="none" stroke={stroke} strokeWidth="2" />
-        <circle cx="36" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-        <circle cx="72" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-      </svg>
-    );
-  }
-
-  if (slug === "pkw-koffer") {
-    return (
-      <svg
-        viewBox="0 0 120 56"
-        className="h-10 w-24 text-zinc-500 transition group-hover:text-brand dark:text-zinc-400 dark:group-hover:text-red-400"
-        aria-hidden
-      >
-        <line x1="8" y1="40" x2="112" y2="40" stroke={stroke} strokeWidth="2" />
-        <rect x="22" y="10" width="68" height="24" rx="2" fill="none" stroke={stroke} strokeWidth="2" />
-        <line x1="10" y1="40" x2="24" y2="28" stroke={stroke} strokeWidth="2" />
-        <line x1="86" y1="16" x2="86" y2="34" stroke={stroke} strokeWidth="2" />
-        <circle cx="38" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-        <circle cx="72" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-      </svg>
-    );
-  }
-
-  if (slug === "pferde") {
-    return (
-      <svg
-        viewBox="0 0 120 56"
-        className="h-10 w-24 text-zinc-500 transition group-hover:text-brand dark:text-zinc-400 dark:group-hover:text-red-400"
-        aria-hidden
-      >
-        <line x1="8" y1="40" x2="112" y2="40" stroke={stroke} strokeWidth="2" />
-        <path d="M24 34 V20 Q24 14 32 14 H76 Q88 14 88 26 V34" fill="none" stroke={stroke} strokeWidth="2" />
-        <line x1="10" y1="40" x2="24" y2="30" stroke={stroke} strokeWidth="2" />
-        <line x1="70" y1="20" x2="80" y2="20" stroke={stroke} strokeWidth="2" />
-        <circle cx="38" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-        <circle cx="72" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-      </svg>
-    );
-  }
-
-  if (slug === "boot") {
-    return (
-      <svg
-        viewBox="0 0 120 56"
-        className="h-10 w-24 text-zinc-500 transition group-hover:text-brand dark:text-zinc-400 dark:group-hover:text-red-400"
-        aria-hidden
-      >
-        <line x1="8" y1="40" x2="112" y2="40" stroke={stroke} strokeWidth="2" />
-        <line x1="10" y1="40" x2="28" y2="31" stroke={stroke} strokeWidth="2" />
-        <line x1="28" y1="31" x2="86" y2="31" stroke={stroke} strokeWidth="2" />
-        <path d="M34 25 Q52 14 76 20 Q80 21 84 24" fill="none" stroke={stroke} strokeWidth="2" />
-        <line x1="50" y1="24" x2="66" y2="24" stroke={stroke} strokeWidth="2" />
-        <line x1="78" y1="24" x2="78" y2="30" stroke={stroke} strokeWidth="2" />
-        <line x1="78" y1="30" x2="82" y2="32" stroke={stroke} strokeWidth="2" />
-        <circle cx="42" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-        <circle cx="74" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-      </svg>
-    );
-  }
-
-  if (slug === "planen") {
-    return (
-      <svg
-        viewBox="0 0 120 56"
-        className="h-10 w-24 text-zinc-500 transition group-hover:text-brand dark:text-zinc-400 dark:group-hover:text-red-400"
-        aria-hidden
-      >
-        <line x1="8" y1="40" x2="112" y2="40" stroke={stroke} strokeWidth="2" />
-        <rect x="24" y="22" width="64" height="12" rx="2" fill="none" stroke={stroke} strokeWidth="2" />
-        <path d="M26 22 Q56 10 86 22" fill="none" stroke={stroke} strokeWidth="2" />
-        <line x1="10" y1="40" x2="24" y2="30" stroke={stroke} strokeWidth="2" />
-        <circle cx="38" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-        <circle cx="72" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-      </svg>
-    );
-  }
-
-  if (slug === "tieflader") {
-    return (
-      <svg
-        viewBox="0 0 120 56"
-        className="h-10 w-24 text-zinc-500 transition group-hover:text-brand dark:text-zinc-400 dark:group-hover:text-red-400"
-        aria-hidden
-      >
-        <line x1="8" y1="40" x2="112" y2="40" stroke={stroke} strokeWidth="2" />
-        <line x1="10" y1="40" x2="30" y2="32" stroke={stroke} strokeWidth="2" />
-        <line x1="30" y1="32" x2="88" y2="32" stroke={stroke} strokeWidth="2" />
-        <line x1="30" y1="32" x2="30" y2="24" stroke={stroke} strokeWidth="2" />
-        <line x1="88" y1="32" x2="96" y2="26" stroke={stroke} strokeWidth="2" />
-        <circle cx="42" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-        <circle cx="56" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-        <circle cx="74" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg
-      viewBox="0 0 120 56"
-      className="h-10 w-24 text-zinc-500 transition group-hover:text-brand dark:text-zinc-400 dark:group-hover:text-red-400"
-      aria-hidden
-    >
-      <line x1="8" y1="40" x2="112" y2="40" stroke={stroke} strokeWidth="2" />
-      <rect x="24" y="20" width="64" height="14" rx="2" fill="none" stroke={stroke} strokeWidth="2" />
-      <line x1="10" y1="40" x2="24" y2="30" stroke={stroke} strokeWidth="2" />
-      <line x1="88" y1="30" x2="98" y2="30" stroke={stroke} strokeWidth="2" />
-      <path d="M42 24 H62 L68 28 H40 Z" fill="none" stroke={stroke} strokeWidth="2" />
-      <circle cx="46" cy="30" r="2" fill="none" stroke={stroke} strokeWidth="2" />
-      <circle cx="60" cy="30" r="2" fill="none" stroke={stroke} strokeWidth="2" />
-      <circle cx="38" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-      <circle cx="72" cy="40" r="5" fill="none" stroke={stroke} strokeWidth="2" />
-    </svg>
-  );
+  return <div className="h-full w-full rounded bg-zinc-100 dark:bg-zinc-800" aria-hidden />;
 }
 
 async function loadHome() {
-  let banners: BannerSlide[] = [];
   let categories: HomeCategory[] = [];
   let portfolio: Pick<
     Listing,
@@ -184,13 +55,6 @@ async function loadHome() {
 
   try {
     const supabase = await createClient();
-    const { data: b } = await supabase
-      .from("banner_slides")
-      .select("id, image_path, sort_order, link_url, active")
-      .eq("active", true)
-      .order("sort_order", { ascending: true });
-    banners = (b ?? []) as BannerSlide[];
-
     const { data: cats } = await supabase
       .from("categories")
       .select("slug, name")
@@ -222,18 +86,18 @@ async function loadHome() {
     /* DB unavailable */
   }
 
-  return { banners, categories, portfolio };
+  return { categories, portfolio };
 }
 
 export default async function HomePage() {
-  const { banners, categories, portfolio } = await loadHome();
+  const { categories, portfolio } = await loadHome();
 
   return (
     <>
       {/* Full-bleed hero — comparable to manufacturer landing sliders */}
       <FullBleed className="bg-zinc-900">
         <div className="relative">
-          <BannerCarousel slides={banners} variant="hero" />
+          <div className="min-h-[min(70vh,520px)] sm:min-h-[min(75vh,560px)] bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-700" />
           <div
             className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent"
             aria-hidden
@@ -290,7 +154,7 @@ export default async function HomePage() {
                 <li key={c.slug}>
                   <Link
                     href={`/kategorie/${c.slug}`}
-                    className="group flex h-full min-h-[160px] flex-col border border-zinc-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
+                    className="group grid h-full min-h-[160px] grid-rows-[170px_auto_auto] border border-zinc-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
                   >
                     <TrailerSketch category={c} />
                     <span className="text-lg font-semibold text-zinc-900 group-hover:text-brand dark:text-white dark:group-hover:text-red-400">

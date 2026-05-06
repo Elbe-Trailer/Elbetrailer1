@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 export default async function Footer() {
   let categories: { slug: string; name: string }[] = [];
@@ -125,9 +126,12 @@ export default async function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-2 border-t border-zinc-200 pt-8 text-zinc-500 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
+        <div className="mt-10 flex flex-col gap-3 border-t border-zinc-200 pt-8 text-zinc-500 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
           <p>© {new Date().getFullYear()} elbe-trailer</p>
-          <p className="text-xs">Hinweis: Unverbindliche Anfragen über die Inserate.</p>
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <ThemeToggle />
+            <p className="text-xs">Hinweis: Unverbindliche Anfragen über die Inserate.</p>
+          </div>
         </div>
       </div>
     </footer>

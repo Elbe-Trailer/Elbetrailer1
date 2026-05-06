@@ -505,3 +505,47 @@ create policy "storage_admin_delete_blog"
   on storage.objects for delete
   to authenticated
   using (bucket_id = 'blog' and public.is_admin());
+
+-- inquiry status workflow
+alter table public.inquiries
+  add column if not exists status text not null default 'neu'
+  check (status in ('neu', 'in_bearbeitung', 'abgeschlossen'));
+
+alter table public.contact_inquiries
+  add column if not exists status text not null default 'neu'
+  check (status in ('neu', 'in_bearbeitung', 'abgeschlossen'));
+
+create index if not exists inquiries_status_idx on public.inquiries (status);
+create index if not exists contact_inquiries_status_idx on public.contact_inquiries (status);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'inquiries'
+      and policyname = 'inquiries_update_admin'
+  ) then
+    create policy "inquiries_update_admin"
+      on public.inquiries for update
+      to authenticated
+      using (public.is_admin())
+      with check (public.is_admin());
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'contact_inquiries'
+      and policyname = 'contact_inquiries_update_admin'
+  ) then
+    create policy "contact_inquiries_update_admin"
+      on public.contact_inquiries for update
+      to authenticated
+      using (public.is_admin())
+      with check (public.is_admin());
+  end if;
+end $$;

@@ -3,6 +3,7 @@
 import { useActionState, useCallback, useState } from "react";
 import { submitInquiry, type SubmitInquiryState } from "./actions";
 import Configurator, { type ConfiguratorAccessory } from "./Configurator";
+import type { AccessorySelection } from "@/types/database";
 
 type Props = {
   listingId: string;
@@ -12,7 +13,11 @@ type Props = {
   customerMode: "kauf" | "miete";
   rentalUnitId: string | null;
   minRentalDays: number;
+  discountTiers: Array<{ min_days: number; discount_percent: number }>;
   unavailableRanges: Array<{ start_date: string; end_date: string }>;
+  initialSelections?: AccessorySelection[];
+  initialStartDate?: string | null;
+  initialEndDate?: string | null;
 };
 
 function rangesOverlap(
@@ -57,11 +62,24 @@ export default function InquiryForm({
   customerMode,
   rentalUnitId,
   minRentalDays,
+  discountTiers,
   unavailableRanges,
+  initialSelections = [],
+  initialStartDate = null,
+  initialEndDate = null,
 }: Props) {
-  const [selections, setSelections] = useState("[]");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [selections, setSelections] = useState(
+    JSON.stringify(
+      initialSelections
+        .filter((selection) => selection.quantity > 0)
+        .map((selection) => ({
+          accessory_id: selection.accessory_id,
+          quantity: selection.quantity,
+        })),
+    ),
+  );
+  const [startDate, setStartDate] = useState(initialStartDate ?? "");
+  const [endDate, setEndDate] = useState(initialEndDate ?? "");
   const [monthCursor, setMonthCursor] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -194,9 +212,11 @@ export default function InquiryForm({
         baseDailyCents={baseDailyCents}
         customerMode={customerMode}
         onSelectionsChange={onSel}
+        initialSelections={initialSelections}
         rentalStartDate={startDate}
         rentalEndDate={endDate}
         hasDateError={!!dateError}
+        discountTiers={discountTiers}
       />
 
       <div className="space-y-4">

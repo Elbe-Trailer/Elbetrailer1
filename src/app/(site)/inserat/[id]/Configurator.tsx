@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatEurFromCents } from "@/lib/format";
+import { calculateRentalPrice } from "@/lib/rentalPricing";
 import { publicStorageUrl } from "@/lib/storage";
-import type { Accessory } from "@/types/database";
+import type { Accessory, AccessorySelection } from "@/types/database";
 
 export type ConfiguratorAccessory = Accessory & {
   max_quantity: number;
@@ -20,9 +21,11 @@ type Props = {
   baseDailyCents: number | null;
   customerMode: "kauf" | "miete";
   onSelectionsChange: (json: string) => void;
+  initialSelections?: AccessorySelection[];
   rentalStartDate?: string;
   rentalEndDate?: string;
   hasDateError?: boolean;
+  discountTiers?: Array<{ min_days: number; discount_percent: number }>;
 };
 
 function formatDateLabel(value: string): string {
@@ -37,11 +40,18 @@ export default function Configurator({
   baseDailyCents,
   customerMode,
   onSelectionsChange,
+  initialSelections = [],
   rentalStartDate = "",
   rentalEndDate = "",
   hasDateError = false,
+  discountTiers = [],
 }: Props) {
-  const [qty, setQty] = useState<Record<string, number>>({});
+  const [qty, setQty] = useState<Record<string, number>>(() => {
+    const entries = initialSelections
+      .filter((selection) => selection.quantity > 0)
+      .map((selection) => [selection.accessory_id, selection.quantity] as const);
+    return Object.fromEntries(entries);
+  });
 
   const groups = useMemo(() => {
     type G = {
@@ -102,7 +112,44 @@ export default function Configurator({
           (1000 * 60 * 60 * 24),
       ) + 1
     : 0;
-  const rentalTotal = grand * rentalDays;
+  const rentalPrice = useMemo(
+    () =>
+      calculateRentalPrice(grand, rentalDays, discountTiers),
+    [discountTiers, grand, rentalDays],
+  );
+  const normalizedDiscountTiers = useMemo(
+    () =>
+      (discountTiers ?? [])
+        .filter(
+          (tier) =>
+            Number.isFinite(Number(tier.min_days)) &&
+            Number(tier.min_days) >= 2 &&
+            Number.isFinite(Number(tier.discount_percent)) &&
+            Number(tier.discount_percent) > 0,
+        )
+        .map((tier) => ({
+          min_days: Math.floor(Number(tier.min_days)),
+          discount_percent: Math.floor(Number(tier.discount_percent)),
+        }))
+        .sort((a, b) => a.min_days - b.min_days),
+    [discountTiers],
+  );
+  const activeDiscountTier = useMemo(() => {
+    if (!isRental || rentalDays <= 0) return null;
+    const applicable = normalizedDiscountTiers.filter((tier) => rentalDays >= tier.min_days);
+    if (applicable.length === 0) return null;
+    return applicable[applicable.length - 1];
+  }, [isRental, normalizedDiscountTiers, rentalDays]);
+
+  useEffect(() => {
+    const selections = accessories
+      .map((a) => ({
+        accessory_id: a.id,
+        quantity: Math.min(qty[a.id] ?? 0, a.max_quantity),
+      }))
+      .filter((s) => s.quantity > 0);
+    onSelectionsChange(JSON.stringify(selections));
+  }, [accessories, onSelectionsChange, qty]);
 
   function setQuantity(id: string, value: number, max: number) {
     const v = Math.max(0, Math.min(max, value));
@@ -122,13 +169,6 @@ export default function Configurator({
         }
       }
       next[id] = v;
-      const selections = accessories
-        .map((a) => ({
-          accessory_id: a.id,
-          quantity: Math.min(next[a.id] ?? 0, a.max_quantity),
-        }))
-        .filter((s) => s.quantity > 0);
-      onSelectionsChange(JSON.stringify(selections));
       return next;
     });
   }
@@ -243,18 +283,53 @@ export default function Configurator({
           <span>{formatEurFromCents(grand)}</span>
         </div>
         {hasRentalRange ? (
-          <div className="mt-2 flex justify-between text-zinc-700 dark:text-zinc-200">
-            <span>
-              Gesamtpreis ({formatDateLabel(rentalStartDate)} -{" "}
-              {formatDateLabel(rentalEndDate)})
-            </span>
-            <span className="font-semibold">{formatEurFromCents(rentalTotal)}</span>
-          </div>
+          <>
+            <div className="mt-2 flex justify-between text-zinc-600 dark:text-zinc-300">
+              <span>Rabattstufe</span>
+              <span>
+                {activeDiscountTier
+                  ? `${activeDiscountTier.discount_percent}% ab ${activeDiscountTier.min_days} Tagen`
+                  : "Keine"}
+              </span>
+            </div>
+            {rentalPrice.discountPercentApplied > 0 ? (
+              <>
+                <div className="mt-2 flex justify-between text-zinc-700 dark:text-zinc-200">
+                  <span>
+                    Gesamtpreis ({formatDateLabel(rentalStartDate)} -{" "}
+                    {formatDateLabel(rentalEndDate)})
+                  </span>
+                  <span>{formatEurFromCents(rentalPrice.grossTotalCents)}</span>
+                </div>
+                <div className="mt-1 flex justify-between text-emerald-700 dark:text-emerald-300">
+                  <span>Rabatt ({rentalPrice.discountPercentApplied}%)</span>
+                  <span>-{formatEurFromCents(rentalPrice.discountAmountCents)}</span>
+                </div>
+              </>
+            ) : null}
+            <div className="mt-1 flex justify-between text-zinc-700 dark:text-zinc-200">
+              <span className="font-semibold">
+                Endpreis ({formatDateLabel(rentalStartDate)} -{" "}
+                {formatDateLabel(rentalEndDate)})
+              </span>
+              <span className="font-semibold">
+                {formatEurFromCents(rentalPrice.finalTotalCents)}
+              </span>
+            </div>
+          </>
         ) : null}
         <p className="mt-2 text-xs text-zinc-500">
           Unverbindliche Übersicht — verbindliche Preise erhalten Sie mit
           unserem Angebot.
         </p>
+        {isRental && normalizedDiscountTiers.length > 0 ? (
+          <p className="mt-1 text-xs text-zinc-500">
+            Langzeit-Rabattstaffel:{" "}
+            {normalizedDiscountTiers
+              .map((tier) => `ab ${tier.min_days} Tagen ${tier.discount_percent}%`)
+              .join(" · ")}
+          </p>
+        ) : null}
       </div>
     </div>
   );
