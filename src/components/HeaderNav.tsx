@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useId, useState } from "react";
 import { getCategoryIconPath, getCategoryIconScale } from "@/lib/categoryIcons";
+import AdminInlineMarketingContentEditor from "@/components/site/AdminInlineMarketingContentEditor";
 
 export type NavCategory = { slug: string; name: string };
 
@@ -46,9 +47,27 @@ function IconSearch({ className }: { className?: string }) {
   );
 }
 
-type Props = { categories: NavCategory[] };
+type HeaderCopy = Record<
+  | "header.brand"
+  | "header.menu.trailers"
+  | "header.menu.all_trailers"
+  | "header.menu.no_categories"
+  | "header.menu.rent"
+  | "header.nav.about"
+  | "header.nav.service"
+  | "header.nav.rent_trailers"
+  | "header.nav.blog"
+  | "header.nav.contact"
+  | "header.mobile.categories_title"
+  | "header.mobile.no_categories"
+  | "header.mobile.menu_open"
+  | "header.mobile.menu_close",
+  string
+>;
 
-export default function HeaderNav({ categories }: Props) {
+type Props = { categories: NavCategory[]; copy: HeaderCopy; isAdmin: boolean };
+
+export default function HeaderNav({ categories, copy, isAdmin }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuId = useId();
 
@@ -78,7 +97,12 @@ export default function HeaderNav({ categories }: Props) {
             className="shrink-0 text-2xl font-bold tracking-tight text-white sm:text-3xl"
             onClick={() => setMobileOpen(false)}
           >
-            elbe-trailer
+            <AdminInlineMarketingContentEditor
+              contentKey="header.brand"
+              value={copy["header.brand"]}
+              isAdmin={isAdmin}
+              inlineOnly
+            />
           </Link>
 
           {/* Desktop */}
@@ -91,7 +115,12 @@ export default function HeaderNav({ categories }: Props) {
                 aria-haspopup="true"
                 aria-expanded="false"
               >
-                Anhänger
+                <AdminInlineMarketingContentEditor
+                  contentKey="header.menu.trailers"
+                  value={copy["header.menu.trailers"]}
+                  isAdmin={isAdmin}
+                  inlineOnly
+                />
                 <IconChevronDown className="h-4 w-4 opacity-90" />
               </button>
               <div
@@ -104,11 +133,21 @@ export default function HeaderNav({ categories }: Props) {
                     href="/anhaenger"
                     className="block px-4 py-2.5 font-medium hover:bg-zinc-50"
                   >
-                    Alle Anhänger
+                    <AdminInlineMarketingContentEditor
+                      contentKey="header.menu.all_trailers"
+                      value={copy["header.menu.all_trailers"]}
+                      isAdmin={isAdmin}
+                      inlineOnly
+                    />
                   </Link>
                   {categories.length === 0 ? (
                     <p className="px-4 py-3 text-zinc-500">
-                      Keine Kategorien — bitte im Admin anlegen.
+                      <AdminInlineMarketingContentEditor
+                        contentKey="header.menu.no_categories"
+                        value={copy["header.menu.no_categories"]}
+                        isAdmin={isAdmin}
+                        inlineOnly
+                      />
                     </p>
                   ) : (
                     <ul>
@@ -145,7 +184,12 @@ export default function HeaderNav({ categories }: Props) {
                       href="/mieten"
                       className="block px-4 py-2.5 font-medium text-[var(--header-coral)] hover:bg-zinc-50"
                     >
-                      Mieten
+                      <AdminInlineMarketingContentEditor
+                        contentKey="header.menu.rent"
+                        value={copy["header.menu.rent"]}
+                        isAdmin={isAdmin}
+                        inlineOnly
+                      />
                     </Link>
                   </div>
                 </div>
@@ -156,31 +200,56 @@ export default function HeaderNav({ categories }: Props) {
               href="/ueber-uns"
               className="rounded px-2 py-2 text-sm font-medium hover:bg-white/10 xl:px-3"
             >
-              Über uns
+              <AdminInlineMarketingContentEditor
+                contentKey="header.nav.about"
+                value={copy["header.nav.about"]}
+                isAdmin={isAdmin}
+                inlineOnly
+              />
             </Link>
             <Link
               href="/service"
               className="rounded px-2 py-2 text-sm font-medium hover:bg-white/10 xl:px-3"
             >
-              Service
+              <AdminInlineMarketingContentEditor
+                contentKey="header.nav.service"
+                value={copy["header.nav.service"]}
+                isAdmin={isAdmin}
+                inlineOnly
+              />
             </Link>
             <Link
               href="/mieten"
               className="rounded px-2 py-2 text-sm font-medium hover:bg-white/10 xl:px-3"
             >
-              Anhänger mieten
+              <AdminInlineMarketingContentEditor
+                contentKey="header.nav.rent_trailers"
+                value={copy["header.nav.rent_trailers"]}
+                isAdmin={isAdmin}
+                inlineOnly
+              />
             </Link>
             <Link
               href="/blog"
               className="rounded px-2 py-2 text-sm font-medium hover:bg-white/10 xl:px-3"
             >
-              Blog
+              <AdminInlineMarketingContentEditor
+                contentKey="header.nav.blog"
+                value={copy["header.nav.blog"]}
+                isAdmin={isAdmin}
+                inlineOnly
+              />
             </Link>
             <Link
               href="/kontakt"
               className="rounded px-2 py-2 text-sm font-medium hover:bg-white/10 xl:px-3"
             >
-              Kontakt
+              <AdminInlineMarketingContentEditor
+                contentKey="header.nav.contact"
+                value={copy["header.nav.contact"]}
+                isAdmin={isAdmin}
+                inlineOnly
+              />
             </Link>
 
             <Link
@@ -206,7 +275,9 @@ export default function HeaderNav({ categories }: Props) {
               className="rounded p-2 hover:bg-white/10"
               aria-expanded={mobileOpen}
               aria-controls={menuId}
-              aria-label={mobileOpen ? "Menü schließen" : "Menü öffnen"}
+              aria-label={
+                mobileOpen ? copy["header.mobile.menu_close"] : copy["header.mobile.menu_open"]
+              }
               onClick={() => setMobileOpen((o) => !o)}
             >
               <span className="flex flex-col gap-1.5" aria-hidden>
@@ -225,14 +296,24 @@ export default function HeaderNav({ categories }: Props) {
           >
             <nav className="mx-auto max-w-7xl space-y-1 px-4 py-4" aria-label="Mobile Hauptnavigation">
               <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                Anhänger — Kategorien
+                <AdminInlineMarketingContentEditor
+                  contentKey="header.mobile.categories_title"
+                  value={copy["header.mobile.categories_title"]}
+                  isAdmin={isAdmin}
+                  inlineOnly
+                />
               </p>
               <Link
                 href="/anhaenger"
                 className="block rounded-md px-3 py-2.5 font-medium hover:bg-zinc-100"
                 onClick={() => setMobileOpen(false)}
               >
-                Alle Anhänger
+                <AdminInlineMarketingContentEditor
+                  contentKey="header.menu.all_trailers"
+                  value={copy["header.menu.all_trailers"]}
+                  isAdmin={isAdmin}
+                  inlineOnly
+                />
               </Link>
               {categories.map((c) => {
                 const iconPath = getCategoryIconPath(c);
@@ -262,7 +343,12 @@ export default function HeaderNav({ categories }: Props) {
               })}
               {categories.length === 0 ? (
                 <p className="px-3 py-2 text-sm text-zinc-500">
-                  Noch keine Kategorien in der Datenbank.
+                  <AdminInlineMarketingContentEditor
+                    contentKey="header.mobile.no_categories"
+                    value={copy["header.mobile.no_categories"]}
+                    isAdmin={isAdmin}
+                    inlineOnly
+                  />
                 </p>
               ) : null}
               <Link
@@ -270,7 +356,12 @@ export default function HeaderNav({ categories }: Props) {
                 className="block rounded-md px-3 py-2.5 font-medium text-[var(--header-coral)] hover:bg-zinc-100"
                 onClick={() => setMobileOpen(false)}
               >
-                Mieten
+                <AdminInlineMarketingContentEditor
+                  contentKey="header.menu.rent"
+                  value={copy["header.menu.rent"]}
+                  isAdmin={isAdmin}
+                  inlineOnly
+                />
               </Link>
 
               <hr className="my-3 border-zinc-200" />
@@ -280,35 +371,60 @@ export default function HeaderNav({ categories }: Props) {
                 className="block rounded-md px-3 py-2.5 hover:bg-zinc-100"
                 onClick={() => setMobileOpen(false)}
               >
-                Über uns
+                <AdminInlineMarketingContentEditor
+                  contentKey="header.nav.about"
+                  value={copy["header.nav.about"]}
+                  isAdmin={isAdmin}
+                  inlineOnly
+                />
               </Link>
               <Link
                 href="/service"
                 className="block rounded-md px-3 py-2.5 hover:bg-zinc-100"
                 onClick={() => setMobileOpen(false)}
               >
-                Service
+                <AdminInlineMarketingContentEditor
+                  contentKey="header.nav.service"
+                  value={copy["header.nav.service"]}
+                  isAdmin={isAdmin}
+                  inlineOnly
+                />
               </Link>
               <Link
                 href="/mieten"
                 className="block rounded-md px-3 py-2.5 hover:bg-zinc-100"
                 onClick={() => setMobileOpen(false)}
               >
-                Anhänger mieten
+                <AdminInlineMarketingContentEditor
+                  contentKey="header.nav.rent_trailers"
+                  value={copy["header.nav.rent_trailers"]}
+                  isAdmin={isAdmin}
+                  inlineOnly
+                />
               </Link>
               <Link
                 href="/blog"
                 className="block rounded-md px-3 py-2.5 hover:bg-zinc-100"
                 onClick={() => setMobileOpen(false)}
               >
-                Blog
+                <AdminInlineMarketingContentEditor
+                  contentKey="header.nav.blog"
+                  value={copy["header.nav.blog"]}
+                  isAdmin={isAdmin}
+                  inlineOnly
+                />
               </Link>
               <Link
                 href="/kontakt"
                 className="block rounded-md px-3 py-2.5 hover:bg-zinc-100"
                 onClick={() => setMobileOpen(false)}
               >
-                Kontakt
+                <AdminInlineMarketingContentEditor
+                  contentKey="header.nav.contact"
+                  value={copy["header.nav.contact"]}
+                  isAdmin={isAdmin}
+                  inlineOnly
+                />
               </Link>
             </nav>
           </div>

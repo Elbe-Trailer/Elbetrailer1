@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import ThemeToggle from "@/components/theme/ThemeToggle";
+import { getOptionalAdmin } from "@/lib/auth/admin";
+import { getMarketingContentMap } from "@/lib/marketing-content";
+import AdminInlineMarketingContentEditor from "@/components/site/AdminInlineMarketingContentEditor";
 
 export default async function Footer() {
+  const admin = await getOptionalAdmin();
+  const supabase = admin?.supabase ?? (await createClient());
   let categories: { slug: string; name: string }[] = [];
   try {
-    const supabase = await createClient();
     const { data } = await supabase
       .from("categories")
       .select("slug, name")
@@ -15,6 +19,23 @@ export default async function Footer() {
   } catch {
     /* offline */
   }
+  const copy = await getMarketingContentMap(supabase, [
+    "footer.brand",
+    "footer.description",
+    "footer.section.categories",
+    "footer.section.offer",
+    "footer.section.legal",
+    "footer.categories.empty",
+    "footer.link.rent",
+    "footer.link.highlights",
+    "footer.link.category_overview",
+    "footer.link.blog",
+    "footer.link.about",
+    "footer.link.contact",
+    "footer.link.imprint",
+    "footer.note.inquiries",
+  ]);
+  const isAdmin = Boolean(admin);
 
   return (
     <footer className="mt-auto border-t border-zinc-200 bg-zinc-100 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-400">
@@ -22,22 +43,39 @@ export default async function Footer() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <p className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-              elbe-trailer
+              <AdminInlineMarketingContentEditor
+                contentKey="footer.brand"
+                value={copy["footer.brand"]}
+                isAdmin={isAdmin}
+              />
             </p>
             <p className="mt-3 max-w-xs leading-relaxed">
-              Inserate mit technischen Angaben, Zubehör-Auswahl und
-              unverbindlicher Anfrage — orientiert an bewährter
-              Branchen-Information, übersichtlich aufgebaut.
+              <AdminInlineMarketingContentEditor
+                contentKey="footer.description"
+                value={copy["footer.description"]}
+                isAdmin={isAdmin}
+                multiline
+              />
             </p>
           </div>
 
           <div>
             <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
-              Kategorien
+              <AdminInlineMarketingContentEditor
+                contentKey="footer.section.categories"
+                value={copy["footer.section.categories"]}
+                isAdmin={isAdmin}
+              />
             </p>
             <ul className="mt-4 space-y-2">
               {categories.length === 0 ? (
-                <li className="text-zinc-500">Keine Kategorien</li>
+                <li className="text-zinc-500">
+                  <AdminInlineMarketingContentEditor
+                    contentKey="footer.categories.empty"
+                    value={copy["footer.categories.empty"]}
+                    isAdmin={isAdmin}
+                  />
+                </li>
               ) : (
                 categories.map((c) => (
                   <li key={c.slug}>
@@ -55,7 +93,11 @@ export default async function Footer() {
 
           <div>
             <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
-              Angebot
+              <AdminInlineMarketingContentEditor
+                contentKey="footer.section.offer"
+                value={copy["footer.section.offer"]}
+                isAdmin={isAdmin}
+              />
             </p>
             <ul className="mt-4 space-y-2">
               <li>
@@ -63,7 +105,12 @@ export default async function Footer() {
                   className="text-zinc-800 hover:underline dark:text-zinc-200"
                   href="/mieten"
                 >
-                  Mieten
+                  <AdminInlineMarketingContentEditor
+                    contentKey="footer.link.rent"
+                    value={copy["footer.link.rent"]}
+                    isAdmin={isAdmin}
+                    inlineOnly
+                  />
                 </Link>
               </li>
               <li>
@@ -71,7 +118,12 @@ export default async function Footer() {
                   className="text-zinc-800 hover:underline dark:text-zinc-200"
                   href="/#angebote"
                 >
-                  Ausgewählte Angebote
+                  <AdminInlineMarketingContentEditor
+                    contentKey="footer.link.highlights"
+                    value={copy["footer.link.highlights"]}
+                    isAdmin={isAdmin}
+                    inlineOnly
+                  />
                 </Link>
               </li>
               <li>
@@ -79,7 +131,12 @@ export default async function Footer() {
                   className="text-zinc-800 hover:underline dark:text-zinc-200"
                   href="/#kategorien"
                 >
-                  Kategorieüberblick
+                  <AdminInlineMarketingContentEditor
+                    contentKey="footer.link.category_overview"
+                    value={copy["footer.link.category_overview"]}
+                    isAdmin={isAdmin}
+                    inlineOnly
+                  />
                 </Link>
               </li>
               <li>
@@ -87,7 +144,12 @@ export default async function Footer() {
                   className="text-zinc-800 hover:underline dark:text-zinc-200"
                   href="/blog"
                 >
-                  Blog
+                  <AdminInlineMarketingContentEditor
+                    contentKey="footer.link.blog"
+                    value={copy["footer.link.blog"]}
+                    isAdmin={isAdmin}
+                    inlineOnly
+                  />
                 </Link>
               </li>
             </ul>
@@ -95,7 +157,11 @@ export default async function Footer() {
 
           <div>
             <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
-              Rechtliches & Kontakt
+              <AdminInlineMarketingContentEditor
+                contentKey="footer.section.legal"
+                value={copy["footer.section.legal"]}
+                isAdmin={isAdmin}
+              />
             </p>
             <ul className="mt-4 space-y-2">
               <li>
@@ -103,7 +169,12 @@ export default async function Footer() {
                   className="text-zinc-800 hover:underline dark:text-zinc-200"
                   href="/ueber-uns"
                 >
-                  Über uns
+                  <AdminInlineMarketingContentEditor
+                    contentKey="footer.link.about"
+                    value={copy["footer.link.about"]}
+                    isAdmin={isAdmin}
+                    inlineOnly
+                  />
                 </Link>
               </li>
               <li>
@@ -111,7 +182,12 @@ export default async function Footer() {
                   className="text-zinc-800 hover:underline dark:text-zinc-200"
                   href="/kontakt"
                 >
-                  Kontakt
+                  <AdminInlineMarketingContentEditor
+                    contentKey="footer.link.contact"
+                    value={copy["footer.link.contact"]}
+                    isAdmin={isAdmin}
+                    inlineOnly
+                  />
                 </Link>
               </li>
               <li>
@@ -119,7 +195,12 @@ export default async function Footer() {
                   className="text-zinc-800 hover:underline dark:text-zinc-200"
                   href="/impressum"
                 >
-                  Impressum
+                  <AdminInlineMarketingContentEditor
+                    contentKey="footer.link.imprint"
+                    value={copy["footer.link.imprint"]}
+                    isAdmin={isAdmin}
+                    inlineOnly
+                  />
                 </Link>
               </li>
             </ul>
@@ -130,7 +211,13 @@ export default async function Footer() {
           <p>© {new Date().getFullYear()} elbe-trailer</p>
           <div className="flex flex-col items-start gap-2 sm:items-end">
             <ThemeToggle />
-            <p className="text-xs">Hinweis: Unverbindliche Anfragen über die Inserate.</p>
+            <p className="text-xs">
+              <AdminInlineMarketingContentEditor
+                contentKey="footer.note.inquiries"
+                value={copy["footer.note.inquiries"]}
+                isAdmin={isAdmin}
+              />
+            </p>
           </div>
         </div>
       </div>

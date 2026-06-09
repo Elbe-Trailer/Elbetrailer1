@@ -1,5 +1,6 @@
 "use server";
 
+import { sendListingInquiryEmails } from "@/lib/email";
 import { createClient } from "@/lib/supabase/server";
 import type { AccessorySelection } from "@/types/database";
 import { revalidatePath } from "next/cache";
@@ -37,7 +38,7 @@ export async function submitInquiry(
   const supabase = await createClient();
   const { data: listing } = await supabase
     .from("listings")
-    .select("id, listing_type")
+    .select("id, listing_type, title")
     .eq("id", listingId)
     .eq("published", true)
     .maybeSingle();
@@ -195,6 +196,61 @@ export async function submitInquiry(
       await supabase.from("inquiries").delete().eq("id", insertedInquiry.id);
       return { ok: false, error: "Buchungsanfrage konnte nicht erstellt werden." };
     }
+  }
+
+  const accessoryLines: {
+    name: string;
+    articleNumber: string | null;
+    quantity: number;
+    priceAdjustmentCents: number;
+  }[] = [];
+
+  if (selectedAccessoryIds.length > 0) {
+    const { data: accessoryRows } = await supabase
+      .from("accessories")
+      .select("id, name, article_number, price_adjustment_cents")
+      .in("id", selectedAccessoryIds);
+
+    const accessoryById = new Map(
+      (accessoryRows ?? []).map((row) => [
+        row.id as string,
+        {
+          name: String(row.name),
+          articleNumber:
+            row.article_number == null ? null : String(row.article_number),
+          priceAdjustmentCents:
+            typeof row.price_adjustment_cents === "number"
+              ? row.price_adjustment_cents
+              : 0,
+        },
+      ]),
+    );
+
+    for (const selection of accessory_selections) {
+      if (selection.quantity <= 0) continue;
+      const accessory = accessoryById.get(selection.accessory_id);
+      if (!accessory) continue;
+      accessoryLines.push({
+        ...accessory,
+        quantity: selection.quantity,
+      });
+    }
+  }
+
+  try {
+    await sendListingInquiryEmails({
+      customerName: name,
+      customerEmail: email,
+      customerPhone: phone || null,
+      customerMessage: message || null,
+      listingId,
+      listingTitle: String(listing.title),
+      startDate: isRentalInquiry ? startDate : null,
+      endDate: isRentalInquiry ? endDate : null,
+      accessories: accessoryLines,
+    });
+  } catch (emailError) {
+    console.error("[submitInquiry] email failed:", emailError);
   }
 
   revalidatePath(`/inserat/${listingId}`);

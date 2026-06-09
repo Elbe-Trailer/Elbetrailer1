@@ -1,5 +1,6 @@
 "use server";
 
+import { sendContactInquiryEmails } from "@/lib/email";
 import { createClient } from "@/lib/supabase/server";
 
 export type SubmitContactInquiryState = { ok: true } | { ok: false; error: string };
@@ -28,6 +29,17 @@ export async function submitContactInquiry(
   if (error) {
     console.error(error);
     return { ok: false, error: "Anfrage konnte nicht gespeichert werden." };
+  }
+
+  try {
+    await sendContactInquiryEmails({
+      customerName: name,
+      customerEmail: email,
+      customerPhone: phone || null,
+      customerMessage: message || null,
+    });
+  } catch (emailError) {
+    console.error("[submitContactInquiry] email failed:", emailError);
   }
 
   return { ok: true };
