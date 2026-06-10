@@ -1,4 +1,5 @@
 import { sanitizeBlogHtml } from "@/lib/blog-content";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type SitePageSlug = "ueber-uns" | "service" | "kontakt" | "impressum";
 
@@ -23,18 +24,6 @@ const FALLBACKS: Record<SitePageSlug, { title: string; content: string }> = {
     content:
       "<p>Bitte hinterlegen Sie hier Ihre vollständigen Impressumsangaben gemäß § 5 TMG.</p>",
   },
-};
-
-type SupabaseClient = {
-  from: (table: string) => {
-    select: (cols: string) => {
-      eq: (col: string, value: string) => {
-        maybeSingle: () => Promise<{
-          data: { slug: string; title: string; content: string } | null;
-        }>;
-      };
-    };
-  };
 };
 
 export async function getSitePageContent(

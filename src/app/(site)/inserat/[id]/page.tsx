@@ -64,7 +64,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
         .select("listing_id, accessory_selections, start_date, end_date")
         .eq("id", inquiryId)
         .maybeSingle();
-      if (inquiry?.listing_id === listing.id) {
+      if (inquiry && inquiry.listing_id === listing.id) {
         initialSelections = Array.isArray(inquiry.accessory_selections)
           ? (inquiry.accessory_selections as AccessorySelection[])
           : [];

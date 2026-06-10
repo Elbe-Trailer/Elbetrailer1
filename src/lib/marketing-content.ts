@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export const MARKETING_CONTENT_FALLBACKS = {
   "home.hero.brand": { label: "Landingpage: Hero Brand", content: "elbe-trailer" },
   "home.hero.title": {
@@ -103,19 +105,6 @@ function normalizeMarketingContentValue(raw: string) {
     .replace(/<[^>]+>/g, "")
     .trim();
 }
-
-type SupabaseClient = {
-  from: (table: string) => {
-    select: (cols: string) => {
-      in: (
-        col: string,
-        values: string[],
-      ) => Promise<{
-        data: { key: string; content: string }[] | null;
-      }>;
-    };
-  };
-};
 
 export async function getMarketingContentMap(
   supabase: SupabaseClient,
