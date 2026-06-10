@@ -1,6 +1,6 @@
 "use client";
 
-import { Extension } from "@tiptap/core";
+import { Extension, type Editor } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -9,6 +9,10 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useRef, useState } from "react";
+import {
+  BLOG_EDITOR_SURFACE_CLASSES,
+  BLOG_MD_PROSE_CLASSES,
+} from "@/lib/blog-prose-classes";
 
 type Props = {
   value: string;
@@ -38,6 +42,7 @@ const FONT_SIZE_OPTIONS = [
   { label: "20px", value: "20px" },
   { label: "24px", value: "24px" },
   { label: "28px", value: "28px" },
+  { label: "30px", value: "30px" },
   { label: "32px", value: "32px" },
 ];
 
@@ -52,6 +57,17 @@ const IMAGE_SIZE_OPTIONS = [
 
 type ImageAlign = "left" | "center" | "right";
 
+const HEADING_DEFAULT_FONT_SIZES: Record<number, string> = {
+  1: "30px",
+  2: "24px",
+  3: "20px",
+};
+
+function renderFontSizeAttribute(fontSize: string | null | undefined) {
+  if (!fontSize) return {};
+  return { style: `font-size: ${fontSize}` };
+}
+
 const FontSize = Extension.create({
   name: "fontSize",
 
@@ -63,18 +79,73 @@ const FontSize = Extension.create({
           fontSize: {
             default: null,
             parseHTML: (element) => element.style.fontSize || null,
-            renderHTML: (attributes) => {
-              if (!attributes.fontSize) {
-                return {};
-              }
-              return { style: `font-size: ${attributes.fontSize}` };
-            },
+            renderHTML: (attributes) => renderFontSizeAttribute(attributes.fontSize),
+          },
+        },
+      },
+      {
+        types: ["paragraph", "heading"],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize || null,
+            renderHTML: (attributes) => renderFontSizeAttribute(attributes.fontSize),
           },
         },
       },
     ];
   },
 });
+
+function readCurrentFontSize(editor: Editor | null): string {
+  if (!editor) return "default";
+
+  const inlineSize = editor.getAttributes("textStyle").fontSize as string | null | undefined;
+  if (inlineSize) return inlineSize;
+
+  if (editor.isActive("heading")) {
+    const headingAttrs = editor.getAttributes("heading");
+    if (headingAttrs.fontSize) return headingAttrs.fontSize as string;
+    const level = Number(headingAttrs.level ?? 2);
+    return HEADING_DEFAULT_FONT_SIZES[level] ?? "default";
+  }
+
+  if (editor.isActive("paragraph")) {
+    const paragraphSize = editor.getAttributes("paragraph").fontSize as string | null | undefined;
+    if (paragraphSize) return paragraphSize;
+  }
+
+  return "default";
+}
+
+function applyFontSize(editor: Editor | null, size: string) {
+  if (!editor) return;
+
+  if (size === "default") {
+    if (editor.isActive("heading")) {
+      editor.chain().focus().updateAttributes("heading", { fontSize: null }).run();
+      return;
+    }
+    if (editor.isActive("paragraph")) {
+      editor.chain().focus().updateAttributes("paragraph", { fontSize: null }).run();
+      return;
+    }
+    editor.chain().focus().unsetMark("textStyle").run();
+    return;
+  }
+
+  if (editor.isActive("heading")) {
+    editor.chain().focus().updateAttributes("heading", { fontSize: size }).run();
+    return;
+  }
+
+  if (editor.isActive("paragraph") && editor.state.selection.empty) {
+    editor.chain().focus().updateAttributes("paragraph", { fontSize: size }).run();
+    return;
+  }
+
+  editor.chain().focus().setMark("textStyle", { fontSize: size }).run();
+}
 
 const CustomImage = Image.extend({
   addAttributes() {
@@ -100,6 +171,7 @@ export default function BlogRichTextEditor({
   const [uploading, setUploading] = useState(false);
   const [imageWidth, setImageWidth] = useState("100%");
   const [imageAlign, setImageAlign] = useState<ImageAlign>("center");
+  const [currentFontSize, setCurrentFontSize] = useState("default");
 
   function extractImageStyle(style: string | null | undefined): {
     width: string;
@@ -128,11 +200,15 @@ export default function BlogRichTextEditor({
     return `${base} display: block; margin-left: auto; margin-right: auto;`;
   }
 
-  function syncImageControls() {
-    const style = String(editor?.getAttributes("image")?.style ?? "");
+  function syncImageControls(currentEditor: Editor | null = editor) {
+    const style = String(currentEditor?.getAttributes("image")?.style ?? "");
     const parsed = extractImageStyle(style);
     setImageWidth(parsed.width);
     setImageAlign(parsed.align);
+  }
+
+  function syncFontSizeControl(currentEditor: Editor | null = editor) {
+    setCurrentFontSize(readCurrentFontSize(currentEditor));
   }
 
   function applyImageLayout(nextWidth: string, nextAlign: ImageAlign) {
@@ -159,15 +235,18 @@ export default function BlogRichTextEditor({
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class:
-          "min-h-[18rem] rounded-b border border-zinc-300 p-3 focus:outline-none dark:border-zinc-600 dark:bg-zinc-950",
+        class: `blog-editor ${BLOG_MD_PROSE_CLASSES} ${BLOG_EDITOR_SURFACE_CLASSES}`,
       },
     },
     onUpdate({ editor: currentEditor }) {
       onChange(currentEditor.getHTML());
     },
-    onSelectionUpdate() {
-      syncImageControls();
+    onSelectionUpdate({ editor: currentEditor }) {
+      syncImageControls(currentEditor);
+      syncFontSizeControl(currentEditor);
+    },
+    onCreate({ editor: currentEditor }) {
+      syncFontSizeControl(currentEditor);
     },
   });
 
@@ -235,6 +314,20 @@ export default function BlogRichTextEditor({
         </button>
         <button
           type="button"
+          onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+          className="rounded border px-2 py-1 text-xs"
+        >
+          H3
+        </button>
+        <button
+          type="button"
+          onClick={() => editor?.chain().focus().setParagraph().run()}
+          className="rounded border px-2 py-1 text-xs"
+        >
+          Absatz
+        </button>
+        <button
+          type="button"
           onClick={() => editor?.chain().focus().toggleBulletList().run()}
           className="rounded border px-2 py-1 text-xs"
         >
@@ -262,15 +355,12 @@ export default function BlogRichTextEditor({
           Rechts
         </button>
         <select
-          defaultValue="16px"
+          value={currentFontSize}
           className="rounded border px-2 py-1 text-xs dark:bg-zinc-950"
           onChange={(e) => {
             const size = e.target.value;
-            if (size === "default") {
-              editor?.chain().focus().setMark("textStyle", { fontSize: null }).run();
-              return;
-            }
-            editor?.chain().focus().setMark("textStyle", { fontSize: size }).run();
+            applyFontSize(editor, size);
+            syncFontSizeControl(editor);
           }}
         >
           <option value="default">Textgröße</option>

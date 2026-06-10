@@ -12,6 +12,7 @@ const ALLOWED_SLUGS = new Set<SitePageSlug>([
   "service",
   "kontakt",
   "impressum",
+  "datenschutz",
 ]);
 
 export async function updateSitePageContent(
@@ -47,5 +48,6 @@ export async function updateSitePageContent(
   if (slug === "service") revalidatePath("/service");
   if (slug === "kontakt") revalidatePath("/kontakt");
   if (slug === "impressum") revalidatePath("/impressum");
+  if (slug === "datenschutz") revalidatePath("/datenschutz");
   return { ok: true };
 }

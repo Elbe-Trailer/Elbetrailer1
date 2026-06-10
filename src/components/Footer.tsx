@@ -33,6 +33,7 @@ export default async function Footer() {
     "footer.link.about",
     "footer.link.contact",
     "footer.link.imprint",
+    "footer.link.privacy",
     "footer.note.inquiries",
   ]);
   const isAdmin = Boolean(admin);
@@ -198,6 +199,19 @@ export default async function Footer() {
                   <AdminInlineMarketingContentEditor
                     contentKey="footer.link.imprint"
                     value={copy["footer.link.imprint"]}
+                    isAdmin={isAdmin}
+                    inlineOnly
+                  />
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className="text-zinc-800 hover:underline dark:text-zinc-200"
+                  href="/datenschutz"
+                >
+                  <AdminInlineMarketingContentEditor
+                    contentKey="footer.link.privacy"
+                    value={copy["footer.link.privacy"]}
                     isAdmin={isAdmin}
                     inlineOnly
                   />

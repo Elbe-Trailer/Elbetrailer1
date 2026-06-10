@@ -24,6 +24,10 @@ try {
 const result = spawnSync(
   "npx",
   ["next", "dev", "--hostname", "127.0.0.1", "--port", "3010"],
-  { stdio: "inherit", shell: false },
+  {
+    stdio: "inherit",
+    shell: false,
+    env: { ...process.env, WATCHPACK_POLLING: "true" },
+  },
 );
 process.exit(result.status ?? 1);

@@ -13,7 +13,14 @@ const ALLOWED_KEYS = new Set<MarketingContentKey>(
   Object.keys(MARKETING_CONTENT_FALLBACKS) as MarketingContentKey[],
 );
 
-const REVALIDATE_PATHS = ["/", "/ueber-uns", "/service", "/kontakt", "/impressum"];
+const REVALIDATE_PATHS = [
+  "/",
+  "/ueber-uns",
+  "/service",
+  "/kontakt",
+  "/impressum",
+  "/datenschutz",
+];
 
 function normalizeMarketingPlainText(raw: string) {
   return raw

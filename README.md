@@ -22,8 +22,13 @@ bun dev
 
 VS Code / Cursor: **Run Task… → „Marktplatz: Browser öffnen“**, oder `npm run open`.
 
-### Seite leer / „lädt nichts“ / merkwürdiges Verhalten
+### Seite leer / 404 / „lädt nichts“ / merkwürdiges Verhalten
 
+- **404 auf allen Seiten** (auch `/`): Meist kaputter Dev-Server — Terminal auf `EMFILE: too many open files` prüfen. Dann:
+  ```bash
+  npm run dev:fresh
+  ```
+  (`WATCHPACK_POLLING` ist in den npm-Scripts bereits aktiv, um das auf macOS zu vermeiden.)
 - Oft laufen **mehrere** `next dev` auf **demselben Port** (z. B. mehrfach `npm run dev` gestartet). Dann: alle alten Prozesse beenden und **einmal** sauber starten:
   ```bash
   npm run dev:fresh

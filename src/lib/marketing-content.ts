@@ -88,6 +88,7 @@ export const MARKETING_CONTENT_FALLBACKS = {
   "footer.link.about": { label: "Footer: Link Über uns", content: "Über uns" },
   "footer.link.contact": { label: "Footer: Link Kontakt", content: "Kontakt" },
   "footer.link.imprint": { label: "Footer: Link Impressum", content: "Impressum" },
+  "footer.link.privacy": { label: "Footer: Link Datenschutz", content: "Datenschutz" },
   "footer.note.inquiries": {
     label: "Footer: Hinweis Anfragen",
     content: "Hinweis: Unverbindliche Anfragen über die Inserate.",
