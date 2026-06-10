@@ -8,7 +8,7 @@ const cloudflareBase = process.env.NEXT_PUBLIC_CLOUDFLARE_PUBLIC_BASE_URL?.trim(
   /\/+$/,
   "",
 );
-const supabaseHosts = new Set<string>(["amgdygnlteoybdwfmltj.supabase.co"]);
+const supabaseHosts = new Set<string>();
 const cloudflareHosts = new Set<string>([
   "pub-7cd204bd9725400e859104bba872fd54.r2.dev",
 ]);

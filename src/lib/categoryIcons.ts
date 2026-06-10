@@ -26,6 +26,9 @@ const ALIASES: Record<string, string> = {
   motorradtransporter: "motorradtransporter",
   pferde: "pferdeanhaenger",
   "pkw-koffer": "kofferanhaenger",
+  planen: "hochlader",
+  planenanhaenger: "hochlader",
+  sonstiges: "spezialanhaenger",
   spezialanhanger: "spezialanhaenger",
   spezialanhaenger: "spezialanhaenger",
 };

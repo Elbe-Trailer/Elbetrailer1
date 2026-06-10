@@ -10,7 +10,7 @@ create extension if not exists "pgcrypto";
 
 -- ---- Types ----
 do $$ begin
-  create type public.listing_type as enum ('kauf', 'miete');
+  create type public.listing_type as enum ('kauf', 'miete', 'kauf_und_miete');
 exception
   when duplicate_object then null;
 end $$;
@@ -378,7 +378,6 @@ insert into public.listings (
   height_mm,
   axle_count,
   condition,
-  location,
   gallery_paths
 )
 select
@@ -394,7 +393,6 @@ select
   350,
   2,
   'gebraucht, gepflegt',
-  'Beispielstadt',
   '{}'
 from public.categories c
 where c.slug = 'pkw-koffer'
@@ -406,6 +404,145 @@ where c.slug = 'pkw-koffer'
 -- ---- 20260504000008: Zubehör-Kategorie Mehrfach vs. Einzelauswahl ----
 alter table public.accessory_categories
   add column if not exists allows_multiple boolean not null default true;
+
+-- ---- 20260504000005: Anhänger-Miete ----
+create table if not exists public.rental_units (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null unique references public.listings (id) on delete cascade,
+  active boolean not null default true,
+  min_rental_days int not null default 1 check (min_rental_days >= 1),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.rental_calendar_blocks (
+  id uuid primary key default gen_random_uuid(),
+  rental_unit_id uuid not null references public.rental_units (id) on delete cascade,
+  start_date date not null,
+  end_date date not null,
+  reason text,
+  created_at timestamptz not null default now(),
+  constraint rental_calendar_blocks_valid_range check (end_date >= start_date)
+);
+
+create index if not exists rental_calendar_blocks_unit_range_idx
+  on public.rental_calendar_blocks (rental_unit_id, start_date, end_date);
+
+do $$ begin
+  create type public.rental_booking_status as enum ('pending', 'confirmed', 'cancelled');
+exception
+  when duplicate_object then null;
+end $$;
+
+create table if not exists public.rental_bookings (
+  id uuid primary key default gen_random_uuid(),
+  rental_unit_id uuid not null references public.rental_units (id) on delete cascade,
+  inquiry_id uuid references public.inquiries (id) on delete set null,
+  status public.rental_booking_status not null default 'pending',
+  start_date date not null,
+  end_date date not null,
+  customer_name text not null,
+  customer_email text not null,
+  customer_phone text,
+  customer_message text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint rental_bookings_valid_range check (end_date >= start_date)
+);
+
+create index if not exists rental_bookings_unit_status_range_idx
+  on public.rental_bookings (rental_unit_id, status, start_date, end_date);
+
+alter table public.inquiries
+  add column if not exists rental_unit_id uuid references public.rental_units (id) on delete set null,
+  add column if not exists start_date date,
+  add column if not exists end_date date;
+
+do $$ begin
+  alter table public.inquiries
+    add constraint inquiries_valid_date_range
+    check (
+      (start_date is null and end_date is null)
+      or (start_date is not null and end_date is not null and end_date >= start_date)
+    );
+exception
+  when duplicate_object then null;
+end $$;
+
+create index if not exists inquiries_rental_unit_idx on public.inquiries (rental_unit_id);
+create index if not exists inquiries_start_end_idx on public.inquiries (start_date, end_date);
+
+alter table public.rental_units enable row level security;
+alter table public.rental_calendar_blocks enable row level security;
+alter table public.rental_bookings enable row level security;
+
+drop policy if exists "rental_units_public_read" on public.rental_units;
+create policy "rental_units_public_read"
+  on public.rental_units for select
+  to anon, authenticated
+  using (
+    active = true
+    and exists (
+      select 1 from public.listings l
+      where l.id = rental_units.listing_id
+        and l.published = true
+        and l.listing_type in ('miete', 'kauf_und_miete')
+    )
+  );
+
+drop policy if exists "rental_units_admin_all" on public.rental_units;
+create policy "rental_units_admin_all"
+  on public.rental_units for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "rental_calendar_blocks_public_read" on public.rental_calendar_blocks;
+create policy "rental_calendar_blocks_public_read"
+  on public.rental_calendar_blocks for select
+  to anon, authenticated
+  using (
+    exists (
+      select 1
+      from public.rental_units ru
+      join public.listings l on l.id = ru.listing_id
+      where ru.id = rental_calendar_blocks.rental_unit_id
+        and ru.active = true
+        and l.published = true
+        and l.listing_type in ('miete', 'kauf_und_miete')
+    )
+  );
+
+drop policy if exists "rental_calendar_blocks_admin_all" on public.rental_calendar_blocks;
+create policy "rental_calendar_blocks_admin_all"
+  on public.rental_calendar_blocks for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "rental_bookings_public_read" on public.rental_bookings;
+create policy "rental_bookings_public_read"
+  on public.rental_bookings for select
+  to anon, authenticated
+  using (
+    status in ('pending', 'confirmed')
+    and exists (
+      select 1
+      from public.rental_units ru
+      join public.listings l on l.id = ru.listing_id
+      where ru.id = rental_bookings.rental_unit_id
+        and ru.active = true
+        and l.published = true
+        and l.listing_type in ('miete', 'kauf_und_miete')
+    )
+  );
+
+drop policy if exists "rental_bookings_admin_all" on public.rental_bookings;
+create policy "rental_bookings_admin_all"
+  on public.rental_bookings for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
 
 -- ---- 20260505000010: Weitere technische Anhänger-Daten ----
 alter table public.listings
@@ -506,7 +643,93 @@ create policy "storage_admin_delete_blog"
   to authenticated
   using (bucket_id = 'blog' and public.is_admin());
 
--- inquiry status workflow
+-- ---- 20260505000013: Statische Seiten ----
+create table if not exists public.site_pages (
+  slug text primary key,
+  title text not null,
+  content text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.site_pages enable row level security;
+
+drop policy if exists "site_pages_public_read" on public.site_pages;
+create policy "site_pages_public_read"
+  on public.site_pages for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "site_pages_admin_all" on public.site_pages;
+create policy "site_pages_admin_all"
+  on public.site_pages for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+insert into public.site_pages (slug, title, content)
+values
+  (
+    'ueber-uns',
+    'Über uns',
+    '<p>Wir sind Ihr Ansprechpartner rund um Anhänger — vom kompakten PKW-Anhänger bis zu Speziallösungen für Boot, Pferd oder Maschinen.</p>
+<h2>Häufig gestellte Fragen</h2>
+<p>Inserate enthalten technische Angaben; auf der Detailseite können Sie Zubehör wählen und eine unverbindliche Anfrage senden. Wir melden uns bei Ihnen zu Verfügbarkeit und nächsten Schritten.</p>
+<h2>Anhänger registrieren</h2>
+<p>Haben Sie ein Fahrzeug erworben und möchten es dokumentieren oder verkaufen? Kontaktieren Sie uns — wir helfen bei der Darstellung im Marktplatz.</p>
+<h2>Händler werden</h2>
+<p>Gewerbliche Anbieter können Inserate pflegen und Anfragen über das System entgegennehmen. Schreiben Sie uns für Zugang und Ablauf.</p>'
+  ),
+  (
+    'kontakt',
+    'Kontakt',
+    '<p>Nutzen Sie die Anfragefunktion auf den Inseraten oder schreiben Sie uns mit Ihrem Anliegen — z. B. zu Verfügbarkeit, Ausstattung oder Händlerkooperation.</p>'
+  ),
+  (
+    'impressum',
+    'Impressum',
+    '<p>Bitte hinterlegen Sie hier Ihre vollständigen Impressumsangaben gemäß § 5 TMG.</p>'
+  )
+on conflict (slug) do nothing;
+
+-- ---- 20260505000014: Kontaktanfragen ----
+create table if not exists public.contact_inquiries (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text not null,
+  phone text,
+  message text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists contact_inquiries_created_idx
+  on public.contact_inquiries (created_at desc);
+
+alter table public.contact_inquiries enable row level security;
+
+drop policy if exists "contact_inquiries_insert_public" on public.contact_inquiries;
+create policy "contact_inquiries_insert_public"
+  on public.contact_inquiries for insert
+  to anon, authenticated
+  with check (true);
+
+drop policy if exists "contact_inquiries_select_admin" on public.contact_inquiries;
+create policy "contact_inquiries_select_admin"
+  on public.contact_inquiries for select
+  to authenticated
+  using (public.is_admin());
+
+-- ---- 20260505000015: Service-Seite ----
+insert into public.site_pages (slug, title, content)
+values
+  (
+    'service',
+    'Service',
+    '<p>Hier können Sie Ihre Serviceleistungen beschreiben, z. B. Wartung, Ersatzteile, Zulassung oder Beratung.</p>'
+  )
+on conflict (slug) do nothing;
+
+-- ---- 20260505000015: inquiry status workflow ----
 alter table public.inquiries
   add column if not exists status text not null default 'neu'
   check (status in ('neu', 'in_bearbeitung', 'abgeschlossen'));
@@ -549,3 +772,140 @@ begin
       with check (public.is_admin());
   end if;
 end $$;
+
+-- ---- 20260505000018: Globale Miet-Rabatt-Einstellungen ----
+create table if not exists public.rental_pricing_settings (
+  id boolean primary key default true,
+  discount_from_days int,
+  discount_percent int not null default 0,
+  updated_at timestamptz not null default now(),
+  constraint rental_pricing_settings_singleton check (id = true),
+  constraint rental_pricing_settings_discount_from_days_check
+    check (discount_from_days is null or discount_from_days >= 2),
+  constraint rental_pricing_settings_discount_percent_check
+    check (discount_percent >= 0 and discount_percent <= 100)
+);
+
+insert into public.rental_pricing_settings (id, discount_from_days, discount_percent)
+values (true, null, 0)
+on conflict (id) do nothing;
+
+alter table public.rental_pricing_settings enable row level security;
+
+drop policy if exists "rental_pricing_settings_public_read" on public.rental_pricing_settings;
+create policy "rental_pricing_settings_public_read"
+  on public.rental_pricing_settings for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "rental_pricing_settings_admin_all" on public.rental_pricing_settings;
+create policy "rental_pricing_settings_admin_all"
+  on public.rental_pricing_settings for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- ---- 20260505000019: Miet-Rabatt-Stufen ----
+create table if not exists public.rental_discount_tiers (
+  id uuid primary key default gen_random_uuid(),
+  min_days int not null check (min_days >= 2),
+  discount_percent int not null check (discount_percent > 0 and discount_percent <= 100),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (min_days)
+);
+
+insert into public.rental_discount_tiers (min_days, discount_percent)
+select discount_from_days, discount_percent
+from public.rental_pricing_settings
+where id = true and discount_from_days is not null and discount_percent > 0
+on conflict (min_days) do update
+set discount_percent = excluded.discount_percent,
+    updated_at = now();
+
+alter table public.rental_discount_tiers enable row level security;
+
+drop policy if exists "rental_discount_tiers_public_read" on public.rental_discount_tiers;
+create policy "rental_discount_tiers_public_read"
+  on public.rental_discount_tiers for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "rental_discount_tiers_admin_all" on public.rental_discount_tiers;
+create policy "rental_discount_tiers_admin_all"
+  on public.rental_discount_tiers for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- ---- 20260506000020: Marketing-Content ----
+create table if not exists public.marketing_content (
+  key text primary key,
+  label text not null,
+  content text not null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+alter table public.marketing_content enable row level security;
+
+drop policy if exists marketing_content_public_read on public.marketing_content;
+create policy marketing_content_public_read
+  on public.marketing_content
+  for select
+  using (true);
+
+drop policy if exists marketing_content_admin_all on public.marketing_content;
+create policy marketing_content_admin_all
+  on public.marketing_content
+  for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+insert into public.marketing_content (key, label, content)
+values
+  ('home.hero.brand', 'Landingpage: Hero Brand', 'elbe-trailer'),
+  ('home.hero.title', 'Landingpage: Hero Titel', 'Was auch immer Sie transportieren — hier finden Sie die passende Lösung.'),
+  ('home.hero.subtitle', 'Landingpage: Hero Untertitel', 'Kaufen oder mieten, Kategorien und Zubehör in der Übersicht, unverbindliche Anfrage in wenigen Schritten.'),
+  ('home.categories.intro.title', 'Landingpage: Kategorien Intro Titel', 'Alles im Blick — strukturiert wie auf Herstellerseiten'),
+  ('home.categories.intro.body', 'Landingpage: Kategorien Intro Text', 'Stöbern Sie in Kategorien, vergleichen Sie Inserate und stellen Sie auf der Detailseite Ihr Zubehör zusammen. So bleibt der Weg von der Idee bis zur Anfrage klar und übersichtlich.'),
+  ('home.categories.heading', 'Landingpage: Kategorien Überschrift', 'Kategorien'),
+  ('home.categories.rental_link', 'Landingpage: Kategorien Miet-Link', 'Oder direkt zu Miet-Angeboten →'),
+  ('home.categories.card_cta', 'Landingpage: Kategorien Karten-CTA', 'Kauf-Inserate ansehen'),
+  ('home.highlights.heading', 'Landingpage: Highlights Überschrift', 'Ausgewählte Angebote'),
+  ('home.highlights.empty_state', 'Landingpage: Highlights Leerstand', 'Noch keine Highlights gesetzt. Im Admin-Bereich können Sie Inserate für die Startseite auswählen.'),
+  ('home.cta.discover.title', 'Landingpage: CTA Entdecken Titel', 'Anhänger entdecken'),
+  ('home.cta.discover.body', 'Landingpage: CTA Entdecken Text', 'Wählen Sie eine Kategorie und filtern Sie auf der Übersicht. Technische Daten und Bilder sehen Sie auf jeder Inserat-Detailseite.'),
+  ('home.cta.discover.button', 'Landingpage: CTA Entdecken Button', 'Zu den Inseraten'),
+  ('home.cta.rent.title', 'Landingpage: CTA Mieten Titel', 'Mieten'),
+  ('home.cta.rent.body', 'Landingpage: CTA Mieten Text', 'Tages- und Wochenpreise, Verfügbarkeit und Anfrage — gebündelt auf der Miet-Übersicht.'),
+  ('home.cta.rent.button', 'Landingpage: CTA Mieten Button', 'Miet-Angebote anzeigen'),
+  ('header.brand', 'Header: Markenname', 'elbe-trailer'),
+  ('header.menu.trailers', 'Header: Menü Anhänger', 'Anhänger'),
+  ('header.menu.all_trailers', 'Header: Menü Alle Anhänger', 'Alle Anhänger'),
+  ('header.menu.no_categories', 'Header: Menü Keine Kategorien', 'Keine Kategorien — bitte im Admin anlegen.'),
+  ('header.menu.rent', 'Header: Menü Mieten', 'Mieten'),
+  ('header.nav.about', 'Header: Navigation Über uns', 'Über uns'),
+  ('header.nav.service', 'Header: Navigation Service', 'Service'),
+  ('header.nav.rent_trailers', 'Header: Navigation Anhänger mieten', 'Anhänger mieten'),
+  ('header.nav.blog', 'Header: Navigation Blog', 'Blog'),
+  ('header.nav.contact', 'Header: Navigation Kontakt', 'Kontakt'),
+  ('header.mobile.categories_title', 'Header Mobile: Kategorien Titel', 'Anhänger — Kategorien'),
+  ('header.mobile.no_categories', 'Header Mobile: Keine Kategorien', 'Noch keine Kategorien in der Datenbank.'),
+  ('header.mobile.menu_open', 'Header Mobile: Menü öffnen', 'Menü öffnen'),
+  ('header.mobile.menu_close', 'Header Mobile: Menü schließen', 'Menü schließen'),
+  ('footer.brand', 'Footer: Markenname', 'elbe-trailer'),
+  ('footer.description', 'Footer: Beschreibung', 'Inserate mit technischen Angaben, Zubehör-Auswahl und unverbindlicher Anfrage — orientiert an bewährter Branchen-Information, übersichtlich aufgebaut.'),
+  ('footer.section.categories', 'Footer: Abschnitt Kategorien', 'Kategorien'),
+  ('footer.section.offer', 'Footer: Abschnitt Angebot', 'Angebot'),
+  ('footer.section.legal', 'Footer: Abschnitt Rechtliches', 'Rechtliches & Kontakt'),
+  ('footer.categories.empty', 'Footer: Keine Kategorien', 'Keine Kategorien'),
+  ('footer.link.rent', 'Footer: Link Mieten', 'Mieten'),
+  ('footer.link.highlights', 'Footer: Link Ausgewählte Angebote', 'Ausgewählte Angebote'),
+  ('footer.link.category_overview', 'Footer: Link Kategorieüberblick', 'Kategorieüberblick'),
+  ('footer.link.blog', 'Footer: Link Blog', 'Blog'),
+  ('footer.link.about', 'Footer: Link Über uns', 'Über uns'),
+  ('footer.link.contact', 'Footer: Link Kontakt', 'Kontakt'),
+  ('footer.link.imprint', 'Footer: Link Impressum', 'Impressum'),
+  ('footer.note.inquiries', 'Footer: Hinweis Anfragen', 'Hinweis: Unverbindliche Anfragen über die Inserate.')
+on conflict (key) do nothing;

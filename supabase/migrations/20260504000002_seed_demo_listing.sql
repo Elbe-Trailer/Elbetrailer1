@@ -13,7 +13,6 @@ insert into public.listings (
   height_mm,
   axle_count,
   condition,
-  location,
   gallery_paths
 )
 select
@@ -29,7 +28,6 @@ select
   350,
   2,
   'gebraucht, gepflegt',
-  'Beispielstadt',
   '{}'
 from public.categories c
 where c.slug = 'pkw-koffer'

@@ -1,6 +1,8 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { sendListingInquiryEmails } from "@/lib/email";
+import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import type { AccessorySelection } from "@/types/database";
 import { revalidatePath } from "next/cache";
@@ -157,21 +159,20 @@ export async function submitInquiry(
     }
   }
 
-  const { data: insertedInquiry, error } = await supabase
-    .from("inquiries")
-    .insert({
+  const inquiryId = randomUUID();
+  const serviceSupabase = createServiceClient();
+  const { error } = await serviceSupabase.from("inquiries").insert({
+    id: inquiryId,
     listing_id: listingId,
     name,
     email,
     phone: phone || null,
     message: message || null,
     accessory_selections,
-      rental_unit_id: isRentalInquiry ? rentalUnit!.id : null,
-      start_date: isRentalInquiry ? startDate : null,
-      end_date: isRentalInquiry ? endDate : null,
-    })
-    .select("id")
-    .single();
+    rental_unit_id: isRentalInquiry ? rentalUnit!.id : null,
+    start_date: isRentalInquiry ? startDate : null,
+    end_date: isRentalInquiry ? endDate : null,
+  });
 
   if (error) {
     console.error(error);
@@ -179,21 +180,23 @@ export async function submitInquiry(
   }
 
   if (isRentalInquiry) {
-    const { error: bookingError } = await supabase.from("rental_bookings").insert({
-      rental_unit_id: rentalUnit!.id,
-      inquiry_id: insertedInquiry.id,
-      status: "pending",
-      start_date: startDate,
-      end_date: endDate,
-      customer_name: name,
-      customer_email: email,
-      customer_phone: phone || null,
-      customer_message: message || null,
-    });
+    const { error: bookingError } = await serviceSupabase
+      .from("rental_bookings")
+      .insert({
+        rental_unit_id: rentalUnit!.id,
+        inquiry_id: inquiryId,
+        status: "pending",
+        start_date: startDate,
+        end_date: endDate,
+        customer_name: name,
+        customer_email: email,
+        customer_phone: phone || null,
+        customer_message: message || null,
+      });
 
     if (bookingError) {
       console.error(bookingError);
-      await supabase.from("inquiries").delete().eq("id", insertedInquiry.id);
+      await serviceSupabase.from("inquiries").delete().eq("id", inquiryId);
       return { ok: false, error: "Buchungsanfrage konnte nicht erstellt werden." };
     }
   }
