@@ -3,6 +3,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import FullBleed from "@/components/FullBleed";
+import HomeHero from "@/components/home/HomeHero";
+import HomeTrustStrip from "@/components/home/HomeTrustStrip";
 import ListingCard from "@/components/ListingCard";
 import {
   getCategoryIconKey,
@@ -148,123 +150,92 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Full-bleed hero — comparable to manufacturer landing sliders */}
-      <FullBleed className="bg-zinc-900">
-        <div className="bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-700">
-          <div
-            className={`px-4 py-10 md:py-12 ${isAdmin ? "pointer-events-auto" : "pointer-events-none"}`}
-          >
-            <div className="mx-auto max-w-7xl">
-              <div className="text-sm font-medium tracking-wide text-white/90 uppercase">
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.hero.brand"
-                  value={copy["home.hero.brand"]}
-                  isAdmin={isAdmin}
-                />
-              </div>
-              <div
-                role="heading"
-                aria-level={1}
-                className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl"
-              >
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.hero.title"
-                  value={copy["home.hero.title"]}
-                  isAdmin={isAdmin}
-                  multiline
-                />
-              </div>
-              <div className="mt-4 max-w-2xl text-lg text-white/90">
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.hero.subtitle"
-                  value={copy["home.hero.subtitle"]}
-                  isAdmin={isAdmin}
-                  multiline
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </FullBleed>
+      <HomeHero
+        copy={{
+          brand: copy["home.hero.brand"],
+          title: copy["home.hero.title"],
+          subtitle: copy["home.hero.subtitle"],
+          ctaBuy: copy["home.hero.cta_buy"],
+          ctaRent: copy["home.hero.cta_rent"],
+        }}
+        isAdmin={isAdmin}
+      />
 
-      <div className="mx-auto w-full max-w-7xl space-y-20 px-4 py-16 md:py-20">
-        <section className="scroll-mt-28 space-y-12" id="kategorien">
-          <div className="max-w-3xl space-y-4 text-zinc-600 dark:text-zinc-400">
-            <div
-              role="heading"
-              aria-level={2}
-              className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white"
-            >
-              <AdminInlineMarketingContentEditor
-                contentKey="home.categories.intro.title"
-                value={copy["home.categories.intro.title"]}
-                isAdmin={isAdmin}
-                multiline
-              />
-            </div>
-            <div className="text-base leading-relaxed">
-              <AdminInlineMarketingContentEditor
-                contentKey="home.categories.intro.body"
-                value={copy["home.categories.intro.body"]}
-                isAdmin={isAdmin}
-                multiline
-              />
-            </div>
-          </div>
+      <HomeTrustStrip
+        copy={{
+          item1: copy["home.trust.item1"],
+          item2: copy["home.trust.item2"],
+          item3: copy["home.trust.item3"],
+          item4: copy["home.trust.item4"],
+        }}
+        isAdmin={isAdmin}
+      />
 
+      <FullBleed className="rounded-t-3xl bg-[var(--surface-card)] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
+        <section className="scroll-mt-28 mx-auto max-w-7xl space-y-8 px-4 py-12 md:py-16" id="kategorien">
           {categories.length > 0 ? (
             <div className="space-y-8" aria-labelledby="kategorien-heading">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div
-                id="kategorien-heading"
-                role="heading"
-                aria-level={2}
-                className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white"
-              >
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.categories.heading"
-                  value={copy["home.categories.heading"]}
-                  isAdmin={isAdmin}
-                />
-              </div>
-              <Link
-                href="/mieten"
-                className="text-sm font-medium text-brand hover:underline dark:text-red-400"
-              >
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.categories.rental_link"
-                  value={copy["home.categories.rental_link"]}
-                  isAdmin={isAdmin}
-                  inlineOnly
-                />
-              </Link>
-            </div>
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {categories.map((c) => (
-                <li key={c.slug}>
-                  <Link
-                    href={`/kategorie/${c.slug}`}
-                    className="group grid h-full min-h-[160px] grid-rows-[170px_auto_auto] border border-zinc-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold tracking-wide text-[var(--header-green)] uppercase">
+                    <AdminInlineMarketingContentEditor
+                      contentKey="home.categories.overline"
+                      value={copy["home.categories.overline"]}
+                      isAdmin={isAdmin}
+                    />
+                  </p>
+                  <h2
+                    id="kategorien-heading"
+                    className="mt-2 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white"
                   >
-                    <TrailerSketch category={c} />
-                    <span className="text-lg font-semibold text-zinc-900 group-hover:text-brand dark:text-white dark:group-hover:text-red-400">
-                      {c.name}
-                    </span>
-                    <span className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                      <AdminInlineMarketingContentEditor
-                        contentKey="home.categories.card_cta"
-                        value={copy["home.categories.card_cta"]}
-                        isAdmin={isAdmin}
-                        inlineOnly
-                      />
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                    <AdminInlineMarketingContentEditor
+                      contentKey="home.categories.heading"
+                      value={copy["home.categories.heading"]}
+                      isAdmin={isAdmin}
+                    />
+                  </h2>
+                </div>
+                <Link
+                  href="/mieten"
+                  className="text-sm font-medium text-[var(--header-green)] hover:underline"
+                >
+                  <AdminInlineMarketingContentEditor
+                    contentKey="home.categories.rental_link"
+                    value={copy["home.categories.rental_link"]}
+                    isAdmin={isAdmin}
+                    inlineOnly
+                  />
+                </Link>
+              </div>
+              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {categories.map((c) => (
+                  <li key={c.slug}>
+                    <Link
+                      href={`/kategorie/${c.slug}`}
+                      className="group grid h-full min-h-[160px] grid-rows-[170px_auto_auto] border border-zinc-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
+                    >
+                      <TrailerSketch category={c} />
+                      <span className="text-lg font-semibold text-zinc-900 group-hover:text-[var(--header-green)] dark:text-white">
+                        {c.name}
+                      </span>
+                      <span className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        <AdminInlineMarketingContentEditor
+                          contentKey="home.categories.card_cta"
+                          value={copy["home.categories.card_cta"]}
+                          isAdmin={isAdmin}
+                          inlineOnly
+                        />
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
         </section>
+      </FullBleed>
+
+      <div className="mx-auto w-full max-w-7xl space-y-20 px-4 py-16 md:py-20">
 
         <section
           className="scroll-mt-28 space-y-8"
@@ -368,77 +339,6 @@ export default async function HomePage() {
           )}
         </section>
       </div>
-
-      <FullBleed className="bg-zinc-900 text-white">
-        <div className="mx-auto max-w-7xl px-4 py-16 md:py-20">
-          <div className="grid gap-10 md:grid-cols-2 md:items-center md:gap-16">
-            <div>
-              <div
-                role="heading"
-                aria-level={2}
-                className="text-2xl font-bold tracking-tight md:text-3xl"
-              >
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.cta.discover.title"
-                  value={copy["home.cta.discover.title"]}
-                  isAdmin={isAdmin}
-                />
-              </div>
-              <div className="mt-3 text-zinc-300">
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.cta.discover.body"
-                  value={copy["home.cta.discover.body"]}
-                  isAdmin={isAdmin}
-                  multiline
-                />
-              </div>
-              <Link
-                href={categories[0] ? `/kategorie/${categories[0].slug}` : "/#kategorien"}
-                className="mt-6 inline-flex items-center justify-center rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
-              >
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.cta.discover.button"
-                  value={copy["home.cta.discover.button"]}
-                  isAdmin={isAdmin}
-                  inlineOnly
-                />
-              </Link>
-            </div>
-            <div>
-              <div
-                role="heading"
-                aria-level={2}
-                className="text-2xl font-bold tracking-tight md:text-3xl"
-              >
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.cta.rent.title"
-                  value={copy["home.cta.rent.title"]}
-                  isAdmin={isAdmin}
-                />
-              </div>
-              <div className="mt-3 text-zinc-300">
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.cta.rent.body"
-                  value={copy["home.cta.rent.body"]}
-                  isAdmin={isAdmin}
-                  multiline
-                />
-              </div>
-              <Link
-                href="/mieten"
-                className="mt-6 inline-flex items-center justify-center rounded-md border-2 border-white/40 bg-transparent px-5 py-2.5 text-sm font-semibold text-white transition hover:border-white hover:bg-white/10"
-              >
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.cta.rent.button"
-                  value={copy["home.cta.rent.button"]}
-                  isAdmin={isAdmin}
-                  inlineOnly
-                />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </FullBleed>
     </>
   );
 }

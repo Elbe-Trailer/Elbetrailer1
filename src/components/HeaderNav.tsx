@@ -82,26 +82,25 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
     return () => window.removeEventListener("resize", onResize);
   }, [mobileOpen]);
 
-  const menuBarGreen = "#2f9e44";
-
   return (
     <header className="sticky top-0 z-50 shadow-md">
       {/* Haupt-Menübalken: grün, Logo + Navigation */}
       <div
-        className="text-white"
-        style={{ backgroundColor: menuBarGreen }}
+        className="bg-[var(--header-green)] text-white"
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:py-3.5">
           <Link
             href="/"
-            className="shrink-0 text-2xl font-bold tracking-tight text-white sm:text-3xl"
+            className="shrink-0"
             onClick={() => setMobileOpen(false)}
           >
-            <AdminInlineMarketingContentEditor
-              contentKey="header.brand"
-              value={copy["header.brand"]}
-              isAdmin={isAdmin}
-              inlineOnly
+            <img
+              src="/brand/header-logo.png"
+              alt={`${copy["header.brand"]} — Verkauf und Vermietung`}
+              decoding="async"
+              fetchPriority="high"
+              className="block w-auto object-contain object-left"
+              style={{ height: "2.25rem", width: "auto" }}
             />
           </Link>
 

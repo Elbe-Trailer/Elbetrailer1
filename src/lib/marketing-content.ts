@@ -1,15 +1,23 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const MARKETING_CONTENT_FALLBACKS = {
-  "home.hero.brand": { label: "Landingpage: Hero Brand", content: "elbe-trailer" },
+  "home.hero.brand": { label: "Landingpage: Hero Brand", content: "STARKE ANHÄNGER." },
   "home.hero.title": {
     label: "Landingpage: Hero Titel",
-    content: "Was auch immer Sie transportieren — hier finden Sie die passende Lösung.",
+    content: "DIE PASSENDE TRANSPORTLÖSUNG FÜR JEDE ANFORDERUNG.",
   },
   "home.hero.subtitle": {
     label: "Landingpage: Hero Untertitel",
-    content:
-      "Kaufen oder mieten, Kategorien und Zubehör in der Übersicht, unverbindliche Anfrage in wenigen Schritten.",
+    content: "Kaufen oder mieten – hochwertige Anhänger für Privat und Gewerbe.",
+  },
+  "home.hero.cta_buy": { label: "Landingpage: Hero CTA Kaufen", content: "Anhänger kaufen" },
+  "home.hero.cta_rent": { label: "Landingpage: Hero CTA Mieten", content: "Anhänger mieten" },
+  "home.trust.item1": { label: "Landingpage: Trust USP 1", content: "Kaufen & mieten" },
+  "home.trust.item2": { label: "Landingpage: Trust USP 2", content: "Zubehör passend" },
+  "home.trust.item3": { label: "Landingpage: Trust USP 3", content: "Anfrage in Minuten" },
+  "home.trust.item4": {
+    label: "Landingpage: Trust USP 4",
+    content: "Anhänger Service und Reparatur",
   },
   "home.categories.intro.title": {
     label: "Landingpage: Kategorien Intro Titel",
@@ -20,7 +28,14 @@ export const MARKETING_CONTENT_FALLBACKS = {
     content:
       "Stöbern Sie in Kategorien, vergleichen Sie Inserate und stellen Sie auf der Detailseite Ihr Zubehör zusammen. So bleibt der Weg von der Idee bis zur Anfrage klar und übersichtlich.",
   },
-  "home.categories.heading": { label: "Landingpage: Kategorien Überschrift", content: "Kategorien" },
+  "home.categories.overline": {
+    label: "Landingpage: Kategorien Overline",
+    content: "ANHÄNGER KAUFEN",
+  },
+  "home.categories.heading": {
+    label: "Landingpage: Kategorien Überschrift",
+    content: "Für jeden Einsatz der richtige Anhänger.",
+  },
   "home.categories.rental_link": {
     label: "Landingpage: Kategorien Miet-Link",
     content: "Oder direkt zu Miet-Angeboten →",
@@ -122,7 +137,11 @@ export async function getMarketingContentMap(
   );
   return uniqueKeys.reduce(
     (acc, key) => {
-      acc[key] = dbMap.get(key) ?? MARKETING_CONTENT_FALLBACKS[key].content;
+      const dbValue = dbMap.get(key);
+      acc[key] =
+        dbValue && dbValue.length > 0
+          ? dbValue
+          : MARKETING_CONTENT_FALLBACKS[key].content;
       return acc;
     },
     {} as Record<MarketingContentKey, string>,
