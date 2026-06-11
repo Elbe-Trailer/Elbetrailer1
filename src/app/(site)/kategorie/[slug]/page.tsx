@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ContentContainer from "@/components/ContentContainer";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 import ListingFilters from "@/components/ListingFilters";
 import ListingCard from "@/components/ListingCard";
 import { parseListingFilters, type ListingFilterSearchParams } from "@/lib/listingFilters";
@@ -11,6 +13,23 @@ type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<ListingFilterSearchParams>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const supabase = await createClient();
+  const { data: cat } = await supabase
+    .from("categories")
+    .select("name")
+    .eq("slug", slug)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!cat) return { title: "Kategorie" };
+  return buildPageMetadata({
+    title: `${cat.name} kaufen`,
+    description: `${cat.name} kaufen — Inserate, Filter und technische Daten bei elbe-trailer.`,
+    path: `/kategorie/${slug}`,
+  });
+}
 
 export default async function CategoryPage({ params, searchParams }: Props) {
   const { slug } = await params;
@@ -86,7 +105,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   let query = supabase
     .from("listings")
     .select(
-      "id, title, price_cents, daily_rate_cents, listing_type, gallery_paths",
+      "id, slug, title, price_cents, daily_rate_cents, listing_type, gallery_paths",
     )
     .eq("category_id", cat.id)
     .eq("published", true)
@@ -154,6 +173,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const list = (listings ?? []) as Pick<
     Listing,
     | "id"
+    | "slug"
     | "title"
     | "price_cents"
     | "daily_rate_cents"

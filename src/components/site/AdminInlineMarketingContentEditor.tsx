@@ -76,7 +76,7 @@ export default function AdminInlineMarketingContentEditor({
           className="w-full rounded border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
         />
       )}
-      <div className="inline-flex items-center gap-2">
+      <span className="inline-flex items-center gap-2">
         <button
           type="submit"
           disabled={pending}
@@ -94,12 +94,12 @@ export default function AdminInlineMarketingContentEditor({
         >
           Abbrechen
         </button>
-      </div>
+      </span>
       {state?.ok === false ? (
-        <p className="text-xs text-red-600 dark:text-red-300">{state.error}</p>
+        <span className="text-xs text-red-600 dark:text-red-300">{state.error}</span>
       ) : null}
       {state?.ok === true ? (
-        <p className="text-xs text-emerald-600 dark:text-emerald-300">Gespeichert.</p>
+        <span className="text-xs text-emerald-600 dark:text-emerald-300">Gespeichert.</span>
       ) : null}
     </form>
   );

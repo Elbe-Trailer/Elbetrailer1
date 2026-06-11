@@ -6,9 +6,10 @@ import { publicStorageUrl } from "@/lib/storage";
 
 type Props = {
   gallery: string[];
+  title: string;
 };
 
-export default function ListingGallery({ gallery }: Props) {
+export default function ListingGallery({ gallery, title }: Props) {
   const [selectedPath, setSelectedPath] = useState(gallery[0]);
 
   const selectedImageUrl = useMemo(
@@ -21,7 +22,7 @@ export default function ListingGallery({ gallery }: Props) {
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
         <Image
           src={selectedImageUrl}
-          alt=""
+          alt={title}
           fill
           className="object-cover"
           priority
@@ -32,9 +33,10 @@ export default function ListingGallery({ gallery }: Props) {
 
       {gallery.length > 1 ? (
         <div className="grid grid-cols-4 gap-2">
-          {gallery.map((path) => {
+          {gallery.map((path, index) => {
             const thumbUrl = publicStorageUrl("listings", path);
             const selected = path === selectedPath;
+            const thumbAlt = `${title} — Bild ${index + 1}`;
             return (
               <button
                 key={path}
@@ -45,12 +47,12 @@ export default function ListingGallery({ gallery }: Props) {
                     ? "ring-2 ring-zinc-900 dark:ring-white"
                     : "ring-1 ring-zinc-200 hover:ring-zinc-400 dark:ring-zinc-700 dark:hover:ring-zinc-500"
                 }`}
-                aria-label="Bild auswählen"
+                aria-label={thumbAlt}
                 aria-pressed={selected}
               >
                 <Image
                   src={thumbUrl}
-                  alt=""
+                  alt={thumbAlt}
                   fill
                   className="object-cover"
                   sizes="120px"

@@ -1,25 +1,60 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import ContentContainer from "@/components/ContentContainer";
+import JsonLd from "@/components/seo/JsonLd";
 import { getOptionalAdmin } from "@/lib/auth/admin";
-import { createClient } from "@/lib/supabase/server";
 import { formatEurFromCents, formatMm } from "@/lib/format";
+import { getPublishedListingByParam } from "@/lib/listings/public";
+import { listingPublicPath } from "@/lib/listing-url";
 import { resolveCustomerListingMode } from "@/lib/listingCustomerMode";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+import { buildListingProductSchema } from "@/lib/seo/listing-schema";
+import { isUuid } from "@/lib/slug";
+import { publicStorageUrl } from "@/lib/storage";
+import { createClient } from "@/lib/supabase/server";
 import type { AccessorySelection } from "@/types/database";
 import type { ConfiguratorAccessory } from "./Configurator";
 import InquiryForm from "./InquiryForm";
 import ListingGallery from "./ListingGallery";
 
 type Props = {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
   searchParams: Promise<{
     ansicht?: string | string[];
     anfrage?: string | string[];
   }>;
 };
 
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug: param } = await params;
+  const supabase = await createClient();
+  const listing = await getPublishedListingByParam(supabase, param);
+  if (!listing) return { title: "Inserat" };
+
+  const parts = [listing.title];
+  if (listing.brand) parts.push(listing.brand);
+  if (listing.price_cents != null) {
+    parts.push(`ab ${formatEurFromCents(listing.price_cents)}`);
+  } else if (listing.daily_rate_cents != null) {
+    parts.push(`ab ${formatEurFromCents(listing.daily_rate_cents)} / Tag`);
+  }
+
+  const firstImage = listing.gallery_paths?.[0];
+  const image = firstImage ? publicStorageUrl("listings", firstImage) : null;
+
+  return buildPageMetadata({
+    title: parts.join(" — "),
+    description:
+      listing.description?.slice(0, 160) ??
+      `${listing.title} — Anhänger bei elbe-trailer anfragen.`,
+    path: listingPublicPath(listing.slug),
+    image,
+  });
+}
+
 export default async function ListingPage({ params, searchParams }: Props) {
-  const { id } = await params;
+  const { slug: param } = await params;
   const sp = await searchParams;
   const ansichtRaw = sp.ansicht;
   const inquiryRaw = sp.anfrage;
@@ -37,17 +72,15 @@ export default async function ListingPage({ params, searchParams }: Props) {
         : undefined;
 
   const supabase = await createClient();
-
-  const { data: listing } = await supabase
-    .from("listings")
-    .select(
-      "id, title, article_number, brand, description, price_cents, daily_rate_cents, condition, exterior_length_mm, exterior_width_mm, loading_length_mm, loading_width_mm, gross_weight_kg, payload_kg, empty_weight_kg, tire_size_inch, axle_count, braked, tip_function, lighting, loading_ramps, loading_area, length_mm, width_mm, height_mm, category_id, listing_type, published, gallery_paths, created_at",
-    )
-    .eq("id", id)
-    .eq("published", true)
-    .maybeSingle();
+  const listing = await getPublishedListingByParam(supabase, param);
 
   if (!listing) notFound();
+
+  if (isUuid(param) && listing.slug) {
+    permanentRedirect(listingPublicPath(listing.slug));
+  }
+
+  const id = listing.id;
 
   const customerMode = resolveCustomerListingMode(
     listing.listing_type as "kauf" | "miete" | "kauf_und_miete",
@@ -227,9 +260,25 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const gallery: string[] = Array.isArray(listing.gallery_paths)
     ? (listing.gallery_paths as string[])
     : [];
+  const imageUrls = gallery.map((path) => publicStorageUrl("listings", path));
 
   return (
     <ContentContainer>
+    <JsonLd
+      data={buildListingProductSchema(
+        {
+          slug: listing.slug,
+          title: listing.title,
+          brand: listing.brand,
+          description: listing.description,
+          price_cents: listing.price_cents,
+          daily_rate_cents: listing.daily_rate_cents,
+          listing_type: listing.listing_type as "kauf" | "miete" | "kauf_und_miete",
+          gallery_paths: gallery,
+        },
+        imageUrls,
+      )}
+    />
     <div className="space-y-10">
       <nav className="text-sm text-zinc-500">
         <Link href="/" className="hover:underline">
@@ -255,7 +304,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       <div className="grid gap-8 lg:grid-cols-2">
         <div>
           {gallery.length ? (
-            <ListingGallery gallery={gallery} />
+            <ListingGallery gallery={gallery} title={listing.title} />
           ) : (
             <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-zinc-100 text-zinc-400 dark:bg-zinc-800">
               Kein Bild

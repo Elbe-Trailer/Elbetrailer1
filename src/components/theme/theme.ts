@@ -7,10 +7,9 @@ export const themeInitScript = `
   const root = document.documentElement;
   const body = document.body;
   const savedTheme = localStorage.getItem(storageKey);
-  const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const theme = savedTheme === "light" || savedTheme === "dark"
     ? savedTheme
-    : (systemPrefersDark ? "dark" : "light");
+    : "light";
 
   const isDark = theme === "dark";
   root.classList.toggle("dark", isDark);

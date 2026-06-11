@@ -1,14 +1,23 @@
+import type { Metadata } from "next";
 import ContentContainer from "@/components/ContentContainer";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 import ListingCard from "@/components/ListingCard";
 import { createClient } from "@/lib/supabase/server";
 import type { Listing } from "@/types/database";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Anhänger mieten",
+  description:
+    "Anhänger mieten — Tages- und Wochenpreise, Verfügbarkeit und unverbindliche Anfrage bei elbe-trailer.",
+  path: "/mieten",
+});
 
 export default async function MietenPage() {
   const supabase = await createClient();
   const { data: listings } = await supabase
     .from("listings")
     .select(
-      "id, title, price_cents, daily_rate_cents, listing_type, gallery_paths",
+      "id, slug, title, price_cents, daily_rate_cents, listing_type, gallery_paths",
     )
     .eq("published", true)
     .in("listing_type", ["miete", "kauf_und_miete"])
@@ -17,6 +26,7 @@ export default async function MietenPage() {
   const list = (listings ?? []) as Pick<
     Listing,
     | "id"
+    | "slug"
     | "title"
     | "price_cents"
     | "daily_rate_cents"

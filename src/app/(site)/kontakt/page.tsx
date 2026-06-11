@@ -1,9 +1,17 @@
+import type { Metadata } from "next";
 import AdminInlineSitePageEditor from "@/components/site/AdminInlineSitePageEditor";
+import JsonLd from "@/components/seo/JsonLd";
+import { buildOrganizationSchema } from "@/lib/seo/listing-schema";
+import { buildSitePageMetadata } from "@/lib/seo/site-page-metadata";
 import ContentContainer from "@/components/ContentContainer";
 import { getOptionalAdmin } from "@/lib/auth/admin";
 import { getSitePageContent } from "@/lib/site-pages";
 import { createClient } from "@/lib/supabase/server";
 import ContactInquiryForm from "./ContactInquiryForm";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildSitePageMetadata("kontakt");
+}
 
 export default async function KontaktPage() {
   const admin = await getOptionalAdmin();
@@ -12,6 +20,7 @@ export default async function KontaktPage() {
 
   return (
     <ContentContainer>
+      <JsonLd data={buildOrganizationSchema()} />
       <article className="max-w-3xl space-y-8 text-zinc-700 dark:text-zinc-300">
         <header className="space-y-4">
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">

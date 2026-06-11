@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import AdminInlineSitePageEditor from "@/components/site/AdminInlineSitePageEditor";
+import { buildSitePageMetadata } from "@/lib/seo/site-page-metadata";
 import ContentContainer from "@/components/ContentContainer";
 import { getOptionalAdmin } from "@/lib/auth/admin";
 import { getSitePageContent } from "@/lib/site-pages";
 import { createClient } from "@/lib/supabase/server";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildSitePageMetadata("datenschutz");
+}
 
 export default async function DatenschutzPage() {
   const admin = await getOptionalAdmin();

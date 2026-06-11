@@ -44,6 +44,7 @@ export type AccessoryForListingConfig = Pick<
 
 export type Listing = {
   id: string;
+  slug: string;
   title: string;
   article_number: string | null;
   brand: string | null;

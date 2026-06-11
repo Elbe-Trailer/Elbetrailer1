@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { themeInitScript } from "@/components/theme/theme";
+import { getSiteUrl } from "@/lib/site-url";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,9 +14,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+
 export const metadata: Metadata = {
-  title: "elbe-trailer",
-  description: "Anhänger kaufen und mieten — mit Zubehör-Konfiguration",
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: "Anhänger kaufen & mieten",
+    template: "%s | elbe-trailer",
+  },
+  description:
+    "Anhänger kaufen und mieten — Konfigurator, Kategorien und unverbindliche Anfrage in wenigen Schritten.",
+  ...(googleVerification
+    ? { verification: { google: googleVerification } }
+    : {}),
 };
 
 export const dynamic = "force-dynamic";

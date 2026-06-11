@@ -1,37 +1,6 @@
-import { sanitizeBlogHtml } from "@/lib/blog-content";
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-export type SitePageSlug =
-  | "ueber-uns"
-  | "service"
-  | "kontakt"
-  | "impressum"
-  | "datenschutz";
-
-const FALLBACKS: Record<SitePageSlug, { title: string; content: string }> = {
-  "ueber-uns": {
-    title: "Über uns",
-    content:
-      "<p>Wir sind Ihr Ansprechpartner rund um Anhänger — vom kompakten PKW-Anhänger bis zu Speziallösungen für Boot, Pferd oder Maschinen.</p>",
-  },
-  service: {
-    title: "Service",
-    content:
-      "<p>Hier können Sie Ihre Serviceleistungen beschreiben, z. B. Wartung, Ersatzteile, Zulassung oder Beratung.</p>",
-  },
-  kontakt: {
-    title: "Kontakt",
-    content:
-      "<p>Nutzen Sie die Anfragefunktion auf den Inseraten oder schreiben Sie uns mit Ihrem Anliegen — z. B. zu Verfügbarkeit, Ausstattung oder Händlerkooperation.</p>",
-  },
-  impressum: {
-    title: "Impressum",
-    content:
-      "<p>Bitte hinterlegen Sie hier Ihre vollständigen Impressumsangaben gemäß § 5 TMG.</p>",
-  },
-  datenschutz: {
-    title: "Datenschutz",
-    content: `<p>Der Schutz Ihrer personenbezogenen Daten ist uns wichtig. Nachfolgend informieren wir Sie über die Verarbeitung personenbezogener Daten auf dieser Website.</p>
+update public.site_pages
+set
+  content = '<p>Der Schutz Ihrer personenbezogenen Daten ist uns wichtig. Nachfolgend informieren wir Sie über die Verarbeitung personenbezogener Daten auf dieser Website.</p>
 <h2>1. Verantwortlicher</h2>
 <p>Verantwortlich für die Datenverarbeitung auf dieser Website ist der in unserem <a href="/impressum">Impressum</a> genannte Anbieter. Für Fragen zum Datenschutz erreichen Sie uns über die dort angegebenen Kontaktdaten.</p>
 <h2>2. Erhebung und Speicherung personenbezogener Daten</h2>
@@ -71,24 +40,7 @@ const FALLBACKS: Record<SitePageSlug, { title: string; content: string }> = {
 <p><strong>Drittlandtransfer:</strong> Daten können in die USA übermittelt werden. Google stützt sich u. a. auf Standardvertragsklauseln der EU-Kommission.</p>
 <p><strong>Widerspruch:</strong> Browser-Plugin zur Deaktivierung von Google Analytics: <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener noreferrer" target="_blank">https://tools.google.com/dlpage/gaoptout</a></p>
 <h2>8. Aktualität und Änderung dieser Datenschutzerklärung</h2>
-<p>Diese Datenschutzerklärung ist aktuell gültig (Version 2026-06-10). Durch die Weiterentwicklung unserer Website oder aufgrund geänderter gesetzlicher bzw. behördlicher Vorgaben kann es notwendig werden, diese Datenschutzerklärung anzupassen. Bei wesentlichen Änderungen holen wir Ihre Einwilligung erneut ein.</p>`,
-  },
-};
-
-export async function getSitePageContent(
-  supabase: SupabaseClient,
-  slug: SitePageSlug,
-) {
-  const { data } = await supabase
-    .from("site_pages")
-    .select("slug, title, content")
-    .eq("slug", slug)
-    .maybeSingle();
-
-  const fallback = FALLBACKS[slug];
-  return {
-    slug,
-    title: data?.title ?? fallback.title,
-    content: sanitizeBlogHtml(data?.content ?? fallback.content),
-  };
-}
+<p>Diese Datenschutzerklärung ist aktuell gültig (Version 2026-06-10). Durch die Weiterentwicklung unserer Website oder aufgrund geänderter gesetzlicher bzw. behördlicher Vorgaben kann es notwendig werden, diese Datenschutzerklärung anzupassen. Bei wesentlichen Änderungen holen wir Ihre Einwilligung erneut ein.</p>',
+  updated_at = timezone('utc', now())
+where slug = 'datenschutz'
+  and content not like '%elbe-trailer-consent%';

@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import ContentContainer from "@/components/ContentContainer";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 import ListingFilters from "@/components/ListingFilters";
 import ListingCard from "@/components/ListingCard";
 import { parseListingFilters, type ListingFilterSearchParams } from "@/lib/listingFilters";
@@ -9,6 +11,7 @@ import type { Listing } from "@/types/database";
 type ListingWithCategory = Pick<
   Listing,
   | "id"
+  | "slug"
   | "title"
   | "price_cents"
   | "daily_rate_cents"
@@ -21,6 +24,13 @@ type ListingWithCategory = Pick<
 type Props = {
   searchParams: Promise<ListingFilterSearchParams>;
 };
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Anhänger kaufen",
+  description:
+    "Anhänger kaufen — Übersicht aller Kauf-Inserate mit Filtern nach Kategorie, Marke und technischen Daten.",
+  path: "/anhaenger",
+});
 
 export default async function AnhaengerPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -95,7 +105,7 @@ export default async function AnhaengerPage({ searchParams }: Props) {
   let query = supabase
     .from("listings")
     .select(
-      "id, title, price_cents, daily_rate_cents, listing_type, gallery_paths, categories(name, slug)",
+      "id, slug, title, price_cents, daily_rate_cents, listing_type, gallery_paths, categories(name, slug)",
     )
     .eq("published", true)
     .in("listing_type", ["kauf", "kauf_und_miete"]);

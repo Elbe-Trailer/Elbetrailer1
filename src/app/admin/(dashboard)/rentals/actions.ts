@@ -1,6 +1,7 @@
 "use server";
 
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
+import { revalidateListingById } from "@/lib/listings/revalidate";
 import { requireAdmin } from "@/lib/auth/admin";
 import { removeObjects } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
@@ -347,7 +348,7 @@ export async function deleteRentalAccessory(formData: FormData) {
   }
 
   for (const link of links ?? []) {
-    revalidatePath(`/inserat/${link.listing_id}`);
+    await revalidateListingById(supabase, link.listing_id as string);
   }
   revalidatePath("/admin/rentals");
   revalidatePath("/admin/accessories");
@@ -396,7 +397,7 @@ export async function saveRentalUnitAccessories(formData: FormData) {
   }
 
   revalidatePath(`/admin/rentals/${rentalUnitId}`);
-  revalidatePath(`/inserat/${rentalUnit.listing_id}`);
+  await revalidateListingById(supabase, rentalUnit.listing_id);
 
   const ctx = String(formData.get("admin_context") ?? "");
   if (ctx === "rental-detail") {

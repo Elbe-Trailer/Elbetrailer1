@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/admin";
+import { listingPublicPath } from "@/lib/listing-url";
 import {
   normalizeAccessoriesForListingConfig,
   type RawAccessoryForListingRow,
@@ -50,7 +51,7 @@ export default async function EditListingPage({ params }: Props) {
           Inserat bearbeiten
         </h1>
         <Link
-          href={`/inserat/${id}`}
+          href={listingPublicPath(l.slug)}
           className="text-sm font-medium text-amber-700 hover:underline dark:text-amber-400"
         >
           Öffentliche Ansicht

@@ -117,6 +117,7 @@ export type ListingInquiryEmailInput = {
   customerPhone: string | null;
   customerMessage: string | null;
   listingId: string;
+  listingSlug: string;
   listingTitle: string;
   startDate: string | null;
   endDate: string | null;
@@ -128,7 +129,7 @@ export async function sendListingInquiryEmails(
 ): Promise<void> {
   const config = getEmailConfig();
   const listingUrl = config?.siteUrl
-    ? `${config.siteUrl}/inserat/${input.listingId}`
+    ? `${config.siteUrl}/inserat/${input.listingSlug}`
     : null;
   const adminUrl = config?.siteUrl
     ? `${config.siteUrl}/admin/inquiries`

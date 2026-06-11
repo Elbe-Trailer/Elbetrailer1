@@ -11,7 +11,7 @@ function applyTheme(theme: ThemeMode) {
 
 function getInitialTheme(): ThemeMode {
   if (typeof window === "undefined") {
-    return "dark";
+    return "light";
   }
 
   const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -19,9 +19,7 @@ function getInitialTheme(): ThemeMode {
     return savedTheme;
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return "light";
 }
 
 export default function ThemeToggle() {

@@ -8,6 +8,7 @@ import type {
   Listing,
   ListingType,
 } from "@/types/database";
+import { normalizeSlug } from "@/lib/slug";
 import { publicStorageUrl } from "@/lib/storage";
 import SuccessChoiceDialog from "@/components/admin/SuccessChoiceDialog";
 import { saveListing, type SaveListingState } from "./actions";
@@ -87,6 +88,9 @@ export default function ListingForm({
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [selectedImageNames, setSelectedImageNames] = useState<string[]>([]);
+  const [title, setTitle] = useState(listing?.title ?? "");
+  const [slug, setSlug] = useState(listing?.slug ?? "");
+  const [slugTouched, setSlugTouched] = useState(Boolean(listing?.slug));
 
   function handleImageSelection(files: FileList | null) {
     if (!files) {
@@ -214,9 +218,36 @@ export default function ListingForm({
           id="title"
           name="title"
           required
-          defaultValue={listing?.title ?? ""}
+          value={title}
+          onChange={(e) => {
+            const nextTitle = e.target.value;
+            setTitle(nextTitle);
+            if (!slugTouched) {
+              setSlug(normalizeSlug(nextTitle));
+            }
+          }}
           className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-950"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium" htmlFor="slug">
+          URL-Slug *
+        </label>
+        <input
+          id="slug"
+          name="slug"
+          required
+          value={slug}
+          onChange={(e) => {
+            setSlugTouched(true);
+            setSlug(normalizeSlug(e.target.value));
+          }}
+          className="w-full rounded-lg border border-zinc-300 px-3 py-2 font-mono text-sm dark:border-zinc-600 dark:bg-zinc-950"
+        />
+        <p className="mt-1 text-xs text-zinc-500">
+          Öffentliche URL: /inserat/{slug || "…"}
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

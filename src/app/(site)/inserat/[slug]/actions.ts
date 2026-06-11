@@ -2,6 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { sendListingInquiryEmails } from "@/lib/email";
+import { listingPublicPath } from "@/lib/listing-url";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import type { AccessorySelection } from "@/types/database";
@@ -40,7 +41,7 @@ export async function submitInquiry(
   const supabase = await createClient();
   const { data: listing } = await supabase
     .from("listings")
-    .select("id, listing_type, title")
+    .select("id, slug, listing_type, title")
     .eq("id", listingId)
     .eq("published", true)
     .maybeSingle();
@@ -247,6 +248,7 @@ export async function submitInquiry(
       customerPhone: phone || null,
       customerMessage: message || null,
       listingId,
+      listingSlug: String(listing.slug),
       listingTitle: String(listing.title),
       startDate: isRentalInquiry ? startDate : null,
       endDate: isRentalInquiry ? endDate : null,
@@ -256,6 +258,6 @@ export async function submitInquiry(
     console.error("[submitInquiry] email failed:", emailError);
   }
 
-  revalidatePath(`/inserat/${listingId}`);
+  revalidatePath(listingPublicPath(String(listing.slug)));
   return { ok: true };
 }

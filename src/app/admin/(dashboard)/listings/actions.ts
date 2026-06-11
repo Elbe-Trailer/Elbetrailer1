@@ -2,6 +2,8 @@
 
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
+import { listingPublicPath } from "@/lib/listing-url";
+import { ensureUniqueSlug, normalizeSlug } from "@/lib/slug";
 import { removeObjects, uploadObject } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -65,6 +67,27 @@ export async function saveListing(
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return { ok: false, error: "Titel erforderlich." };
 
+  let slugInput = normalizeSlug(String(formData.get("slug") ?? ""));
+  if (!slugInput) slugInput = normalizeSlug(title);
+  if (!slugInput) return { ok: false, error: "Slug erforderlich." };
+
+  const { data: existingListing } = id
+    ? await supabase.from("listings").select("slug").eq("id", id).maybeSingle()
+    : { data: null };
+
+  const slug = await ensureUniqueSlug(
+    slugInput,
+    async (candidate) => {
+      const { data } = await supabase
+        .from("listings")
+        .select("id")
+        .eq("slug", candidate)
+        .maybeSingle();
+      return Boolean(data && data.id !== id);
+    },
+    existingListing?.slug ?? undefined,
+  );
+
   const category_id = String(formData.get("category_id") ?? "");
   if (!category_id) return { ok: false, error: "Kategorie wählen." };
   const offer_kauf = formData.get("offer_kauf") === "on";
@@ -119,6 +142,7 @@ export async function saveListing(
   const files = formData.getAll("images") as File[];
 
   const row = {
+    slug,
     title,
     article_number,
     brand,
@@ -216,7 +240,7 @@ export async function saveListing(
 
   revalidatePath("/");
   revalidatePath("/admin/listings");
-  revalidatePath(`/inserat/${listingId}`);
+  revalidatePath(listingPublicPath(slug));
 
   if (wasNew) {
     return { ok: true, listingId, created: true };

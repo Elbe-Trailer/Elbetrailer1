@@ -1,13 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { formatEurFromCents } from "@/lib/format";
+import { listingPublicPath } from "@/lib/listing-url";
 import { publicStorageUrl } from "@/lib/storage";
 import type { Listing, ListingType } from "@/types/database";
 
 type Props = {
   listing: Pick<
     Listing,
-    "id" | "title" | "price_cents" | "daily_rate_cents" | "listing_type" | "gallery_paths"
+    "id" | "slug" | "title" | "price_cents" | "daily_rate_cents" | "listing_type" | "gallery_paths"
   >;
   mode?: "auto" | "kauf" | "miete";
   /** z. B. `?ansicht=miete` für Kauf+Miete-Inserate in der Miet-Übersicht */
@@ -41,7 +42,7 @@ export default function ListingCard({
   detailQuery = "",
 }: Props) {
   const first = listing.gallery_paths[0];
-  const href = `/inserat/${listing.id}${detailQuery}`;
+  const href = listingPublicPath(listing.slug, detailQuery);
   return (
     <Link
       href={href}
@@ -51,7 +52,7 @@ export default function ListingCard({
         {first ? (
           <Image
             src={publicStorageUrl("listings", first)}
-            alt=""
+            alt={listing.title}
             fill
             className="object-cover transition group-hover:scale-[1.02]"
             sizes="(max-width:768px) 100vw, 33vw"

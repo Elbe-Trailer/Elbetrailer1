@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CookieSettingsLink from "@/components/consent/CookieSettingsLink";
 import { createClient } from "@/lib/supabase/server";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import { getOptionalAdmin } from "@/lib/auth/admin";
@@ -43,31 +44,31 @@ export default async function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-12">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+            <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
               <AdminInlineMarketingContentEditor
                 contentKey="footer.brand"
                 value={copy["footer.brand"]}
                 isAdmin={isAdmin}
               />
-            </p>
-            <p className="mt-3 max-w-xs leading-relaxed">
+            </div>
+            <div className="mt-3 max-w-xs leading-relaxed">
               <AdminInlineMarketingContentEditor
                 contentKey="footer.description"
                 value={copy["footer.description"]}
                 isAdmin={isAdmin}
                 multiline
               />
-            </p>
+            </div>
           </div>
 
           <div>
-            <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
+            <div className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
               <AdminInlineMarketingContentEditor
                 contentKey="footer.section.categories"
                 value={copy["footer.section.categories"]}
                 isAdmin={isAdmin}
               />
-            </p>
+            </div>
             <ul className="mt-4 space-y-2">
               {categories.length === 0 ? (
                 <li className="text-zinc-500">
@@ -93,13 +94,13 @@ export default async function Footer() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
+            <div className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
               <AdminInlineMarketingContentEditor
                 contentKey="footer.section.offer"
                 value={copy["footer.section.offer"]}
                 isAdmin={isAdmin}
               />
-            </p>
+            </div>
             <ul className="mt-4 space-y-2">
               <li>
                 <Link
@@ -157,13 +158,13 @@ export default async function Footer() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
+            <div className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
               <AdminInlineMarketingContentEditor
                 contentKey="footer.section.legal"
                 value={copy["footer.section.legal"]}
                 isAdmin={isAdmin}
               />
-            </p>
+            </div>
             <ul className="mt-4 space-y-2">
               <li>
                 <Link
@@ -217,6 +218,9 @@ export default async function Footer() {
                   />
                 </Link>
               </li>
+              <li>
+                <CookieSettingsLink />
+              </li>
             </ul>
           </div>
         </div>
@@ -225,13 +229,13 @@ export default async function Footer() {
           <p>© {new Date().getFullYear()} elbe-trailer</p>
           <div className="flex flex-col items-start gap-2 sm:items-end">
             <ThemeToggle />
-            <p className="text-xs">
+            <div className="text-xs">
               <AdminInlineMarketingContentEditor
                 contentKey="footer.note.inquiries"
                 value={copy["footer.note.inquiries"]}
                 isAdmin={isAdmin}
               />
-            </p>
+            </div>
           </div>
         </div>
       </div>

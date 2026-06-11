@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 import FullBleed from "@/components/FullBleed";
 import ListingCard from "@/components/ListingCard";
 import {
@@ -15,6 +17,13 @@ import {
 import AdminInlineMarketingContentEditor from "@/components/site/AdminInlineMarketingContentEditor";
 import { createClient } from "@/lib/supabase/server";
 import type { Listing } from "@/types/database";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Anhänger kaufen & mieten",
+  description:
+    "Anhänger kaufen oder mieten — Kategorien, Zubehör-Konfiguration und unverbindliche Anfrage bei elbe-trailer.",
+  path: "/",
+});
 
 type HomeCategory = { slug: string; name: string };
 
@@ -52,6 +61,7 @@ async function loadHome() {
   let portfolio: Pick<
     Listing,
     | "id"
+    | "slug"
     | "title"
     | "price_cents"
     | "daily_rate_cents"
@@ -86,7 +96,7 @@ async function loadHome() {
       const { data: listings } = await supabase
         .from("listings")
         .select(
-          "id, title, price_cents, daily_rate_cents, listing_type, gallery_paths",
+          "id, slug, title, price_cents, daily_rate_cents, listing_type, gallery_paths",
         )
         .in("id", ids);
       const map = new Map(
@@ -145,29 +155,33 @@ export default async function HomePage() {
             className={`px-4 py-10 md:py-12 ${isAdmin ? "pointer-events-auto" : "pointer-events-none"}`}
           >
             <div className="mx-auto max-w-7xl">
-              <p className="text-sm font-medium tracking-wide text-white/90 uppercase">
+              <div className="text-sm font-medium tracking-wide text-white/90 uppercase">
                 <AdminInlineMarketingContentEditor
                   contentKey="home.hero.brand"
                   value={copy["home.hero.brand"]}
                   isAdmin={isAdmin}
                 />
-              </p>
-              <h1 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl">
+              </div>
+              <div
+                role="heading"
+                aria-level={1}
+                className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl"
+              >
                 <AdminInlineMarketingContentEditor
                   contentKey="home.hero.title"
                   value={copy["home.hero.title"]}
                   isAdmin={isAdmin}
                   multiline
                 />
-              </h1>
-              <p className="mt-4 max-w-2xl text-lg text-white/90">
+              </div>
+              <div className="mt-4 max-w-2xl text-lg text-white/90">
                 <AdminInlineMarketingContentEditor
                   contentKey="home.hero.subtitle"
                   value={copy["home.hero.subtitle"]}
                   isAdmin={isAdmin}
                   multiline
                 />
-              </p>
+              </div>
             </div>
           </div>
         </div>
@@ -176,29 +190,35 @@ export default async function HomePage() {
       <div className="mx-auto w-full max-w-7xl space-y-20 px-4 py-16 md:py-20">
         <section className="scroll-mt-28 space-y-12" id="kategorien">
           <div className="max-w-3xl space-y-4 text-zinc-600 dark:text-zinc-400">
-            <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+            <div
+              role="heading"
+              aria-level={2}
+              className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white"
+            >
               <AdminInlineMarketingContentEditor
                 contentKey="home.categories.intro.title"
                 value={copy["home.categories.intro.title"]}
                 isAdmin={isAdmin}
                 multiline
               />
-            </h2>
-            <p className="text-base leading-relaxed">
+            </div>
+            <div className="text-base leading-relaxed">
               <AdminInlineMarketingContentEditor
                 contentKey="home.categories.intro.body"
                 value={copy["home.categories.intro.body"]}
                 isAdmin={isAdmin}
                 multiline
               />
-            </p>
+            </div>
           </div>
 
           {categories.length > 0 ? (
             <div className="space-y-8" aria-labelledby="kategorien-heading">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <h2
+              <div
                 id="kategorien-heading"
+                role="heading"
+                aria-level={2}
                 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white"
               >
                 <AdminInlineMarketingContentEditor
@@ -206,7 +226,7 @@ export default async function HomePage() {
                   value={copy["home.categories.heading"]}
                   isAdmin={isAdmin}
                 />
-              </h2>
+              </div>
               <Link
                 href="/mieten"
                 className="text-sm font-medium text-brand hover:underline dark:text-red-400"
@@ -251,8 +271,10 @@ export default async function HomePage() {
           id="angebote"
           aria-labelledby="angebote-heading"
         >
-          <h2
+          <div
             id="angebote-heading"
+            role="heading"
+            aria-level={2}
             className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white"
           >
             <AdminInlineMarketingContentEditor
@@ -260,16 +282,16 @@ export default async function HomePage() {
               value={copy["home.highlights.heading"]}
               isAdmin={isAdmin}
             />
-          </h2>
+          </div>
           {portfolio.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-zinc-300 p-10 text-center text-zinc-500 dark:border-zinc-700">
+            <div className="rounded-xl border border-dashed border-zinc-300 p-10 text-center text-zinc-500 dark:border-zinc-700">
               <AdminInlineMarketingContentEditor
                 contentKey="home.highlights.empty_state"
                 value={copy["home.highlights.empty_state"]}
                 isAdmin={isAdmin}
                 multiline
               />
-            </p>
+            </div>
           ) : (
             <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {portfolio.map((listing) => (
@@ -351,21 +373,25 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 py-16 md:py-20">
           <div className="grid gap-10 md:grid-cols-2 md:items-center md:gap-16">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+              <div
+                role="heading"
+                aria-level={2}
+                className="text-2xl font-bold tracking-tight md:text-3xl"
+              >
                 <AdminInlineMarketingContentEditor
                   contentKey="home.cta.discover.title"
                   value={copy["home.cta.discover.title"]}
                   isAdmin={isAdmin}
                 />
-              </h2>
-              <p className="mt-3 text-zinc-300">
+              </div>
+              <div className="mt-3 text-zinc-300">
                 <AdminInlineMarketingContentEditor
                   contentKey="home.cta.discover.body"
                   value={copy["home.cta.discover.body"]}
                   isAdmin={isAdmin}
                   multiline
                 />
-              </p>
+              </div>
               <Link
                 href={categories[0] ? `/kategorie/${categories[0].slug}` : "/#kategorien"}
                 className="mt-6 inline-flex items-center justify-center rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
@@ -379,21 +405,25 @@ export default async function HomePage() {
               </Link>
             </div>
             <div>
-              <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+              <div
+                role="heading"
+                aria-level={2}
+                className="text-2xl font-bold tracking-tight md:text-3xl"
+              >
                 <AdminInlineMarketingContentEditor
                   contentKey="home.cta.rent.title"
                   value={copy["home.cta.rent.title"]}
                   isAdmin={isAdmin}
                 />
-              </h2>
-              <p className="mt-3 text-zinc-300">
+              </div>
+              <div className="mt-3 text-zinc-300">
                 <AdminInlineMarketingContentEditor
                   contentKey="home.cta.rent.body"
                   value={copy["home.cta.rent.body"]}
                   isAdmin={isAdmin}
                   multiline
                 />
-              </p>
+              </div>
               <Link
                 href="/mieten"
                 className="mt-6 inline-flex items-center justify-center rounded-md border-2 border-white/40 bg-transparent px-5 py-2.5 text-sm font-semibold text-white transition hover:border-white hover:bg-white/10"

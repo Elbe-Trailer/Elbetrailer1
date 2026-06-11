@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { sanitizeBlogHtml } from "@/lib/blog-content";
 import { removeObjects, uploadObject } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
+import { normalizeSlug } from "@/lib/slug";
 import { redirect } from "next/navigation";
 
 export type SaveBlogPostState = undefined | { ok: false; error: string };
@@ -15,14 +16,6 @@ function formatUploadErrorMessage(message: string | undefined): string {
     return "Cover-Upload fehlgeschlagen: Cloudflare R2 Konfiguration fehlt.";
   }
   return `Cover-Upload fehlgeschlagen${message ? `: ${message}` : "."}`;
-}
-
-function normalizeSlug(input: string): string {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-_]/g, "");
 }
 
 export async function saveBlogPost(

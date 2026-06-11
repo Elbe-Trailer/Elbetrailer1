@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { formatEurFromCents } from "@/lib/format";
 import { calculateRentalPrice } from "@/lib/rentalPricing";
 import Link from "next/link";
+import { listingPublicPath } from "@/lib/listing-url";
 import {
   deleteContactInquiry,
   deleteInquiry,
@@ -15,7 +16,7 @@ export default async function AdminInquiriesPage() {
     supabase
       .from("inquiries")
       .select(
-        "id, name, email, phone, message, status, accessory_selections, start_date, end_date, rental_unit_id, created_at, listing_id, listings ( title, listing_type, price_cents, daily_rate_cents )",
+        "id, name, email, phone, message, status, accessory_selections, start_date, end_date, rental_unit_id, created_at, listing_id, listings ( slug, title, listing_type, price_cents, daily_rate_cents )",
       )
       .order("created_at", { ascending: false })
       .limit(100),
@@ -32,7 +33,7 @@ export default async function AdminInquiriesPage() {
       ? supabase
           .from("inquiries")
           .select(
-            "id, name, email, phone, message, accessory_selections, start_date, end_date, rental_unit_id, created_at, listing_id, listings ( title, listing_type, price_cents, daily_rate_cents )",
+            "id, name, email, phone, message, accessory_selections, start_date, end_date, rental_unit_id, created_at, listing_id, listings ( slug, title, listing_type, price_cents, daily_rate_cents )",
           )
           .order("created_at", { ascending: false })
           .limit(100)
@@ -100,20 +101,19 @@ export default async function AdminInquiriesPage() {
         <ul className="space-y-6">
           {rows.map((r) => {
             const isNew = r.status === "neu";
-            const listingTitle =
-              r.listings &&
-              typeof r.listings === "object" &&
-              "title" in r.listings
-                ? String((r.listings as { title: string }).title)
-                : "—";
-            const listingDetails =
+            const listingMeta =
               r.listings && typeof r.listings === "object"
                 ? (r.listings as {
+                    slug?: string;
+                    title?: string;
                     listing_type?: "kauf" | "miete" | "kauf_und_miete" | null;
                     price_cents?: number | null;
                     daily_rate_cents?: number | null;
                   })
                 : null;
+            const listingTitle = listingMeta?.title ? String(listingMeta.title) : "—";
+            const listingSlug = listingMeta?.slug ? String(listingMeta.slug) : null;
+            const listingDetails = listingMeta;
             const selections = Array.isArray(r.accessory_selections)
               ? (r.accessory_selections as { accessory_id: string; quantity: number }[])
               : [];
@@ -175,10 +175,10 @@ export default async function AdminInquiriesPage() {
                 </div>
                 <p className="mt-2 text-sm">
                   <span className="text-zinc-500">Inserat:</span>{" "}
-                  {r.listing_id ? (
+                  {listingSlug ? (
                     <Link
                       className="underline"
-                      href={`/inserat/${r.listing_id}?anfrage=${r.id}`}
+                      href={listingPublicPath(listingSlug, `?anfrage=${r.id}`)}
                       target="_blank"
                       rel="noreferrer"
                     >

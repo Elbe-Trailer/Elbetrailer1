@@ -1,10 +1,19 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import ContentContainer from "@/components/ContentContainer";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 import { createClient } from "@/lib/supabase/server";
 import { publicStorageUrl } from "@/lib/storage";
 
 type Props = { searchParams: Promise<{ cat?: string }> };
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Blog & Ratgeber",
+  description:
+    "Ratgeber und Neuigkeiten rund um Anhänger — Kauf, Miete, Zulassung und mehr bei elbe-trailer.",
+  path: "/blog",
+});
 
 export default async function BlogListPage({ searchParams }: Props) {
   const { cat } = await searchParams;
@@ -146,7 +155,7 @@ export default async function BlogListPage({ searchParams }: Props) {
                         >
                           <Image
                             src={cover}
-                            alt=""
+                            alt={post.title}
                             fill
                             className="object-cover"
                             sizes="(max-width: 768px) 100vw, 288px"

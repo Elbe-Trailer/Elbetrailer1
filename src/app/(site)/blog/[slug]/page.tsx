@@ -5,7 +5,10 @@ import { notFound } from "next/navigation";
 import AdminInlinePostEditor from "@/components/blog/AdminInlinePostEditor";
 import BlogMarkdown from "@/components/BlogMarkdown";
 import ContentContainer from "@/components/ContentContainer";
+import JsonLd from "@/components/seo/JsonLd";
 import { getOptionalAdmin } from "@/lib/auth/admin";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+import { buildBlogPostingSchema } from "@/lib/seo/listing-schema";
 import { createClient } from "@/lib/supabase/server";
 import { publicStorageUrl } from "@/lib/storage";
 
@@ -17,15 +20,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const supabase = await createClient();
     const { data: post } = await supabase
       .from("blog_posts")
-      .select("title, excerpt")
+      .select("title, excerpt, cover_image_path")
       .eq("slug", slug)
       .eq("published", true)
       .maybeSingle();
     if (!post) return { title: "Blog" };
-    return {
-      title: `${post.title} | Blog`,
+    const cover =
+      post.cover_image_path != null && post.cover_image_path !== ""
+        ? publicStorageUrl("blog", post.cover_image_path)
+        : null;
+    return buildPageMetadata({
+      title: post.title,
       description: post.excerpt ?? undefined,
-    };
+      path: `/blog/${slug}`,
+      image: cover,
+      type: "article",
+    });
   } catch {
     return { title: "Blog" };
   }
@@ -68,6 +78,19 @@ export default async function BlogPostPublicPage({ params }: Props) {
 
   return (
     <ContentContainer>
+      <JsonLd
+        data={buildBlogPostingSchema(
+          {
+            slug: post.slug,
+            title: post.title,
+            excerpt: post.excerpt,
+            author: post.author,
+            published_at: post.published_at,
+            cover_image_path: post.cover_image_path,
+          },
+          cover,
+        )}
+      />
       <article className="mx-auto max-w-3xl space-y-8 pb-12">
         <nav className="text-sm text-zinc-500 dark:text-zinc-400">
           <Link href="/blog" className="hover:underline">
@@ -106,7 +129,7 @@ export default async function BlogPostPublicPage({ params }: Props) {
           <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
             <Image
               src={cover}
-              alt=""
+              alt={post.title}
               fill
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 768px"
