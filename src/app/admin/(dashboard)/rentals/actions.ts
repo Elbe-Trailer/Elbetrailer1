@@ -337,7 +337,6 @@ export async function deleteRentalAccessory(formData: FormData) {
     await removeObjects({
       bucket: "accessories",
       paths: [row.image_path],
-      supabaseFallback: supabase,
     });
   }
 

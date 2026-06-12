@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import ContentContainer from "@/components/ContentContainer";
 import JsonLd from "@/components/seo/JsonLd";
+import { recordListingView } from "@/lib/analytics/record-listing-view";
 import { getOptionalAdmin } from "@/lib/auth/admin";
 import { formatEurFromCents, formatMm } from "@/lib/format";
 import { getPublishedListingByParam } from "@/lib/listings/public";
@@ -80,6 +81,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
     permanentRedirect(listingPublicPath(listing.slug));
   }
 
+  const admin = await getOptionalAdmin();
+  void recordListingView(listing.id, { isAdminPreview: !!admin });
+
   const id = listing.id;
 
   const customerMode = resolveCustomerListingMode(
@@ -90,7 +94,6 @@ export default async function ListingPage({ params, searchParams }: Props) {
   let initialStartDate: string | null = null;
   let initialEndDate: string | null = null;
   if (inquiryId) {
-    const admin = await getOptionalAdmin();
     if (admin) {
       const { data: inquiry } = await admin.supabase
         .from("inquiries")

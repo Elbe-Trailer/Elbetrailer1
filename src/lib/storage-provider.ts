@@ -2,30 +2,12 @@
 
 import { DeleteObjectsCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-type SupabaseStorageFallback = {
-  storage: {
-    from: (bucket: string) => {
-      upload: (path: string, file: File, options: { upsert: boolean }) => Promise<{ error: { message?: string } | null }>;
-      remove: (paths: string[]) => Promise<{ error: { message?: string } | null }>;
-    };
-  };
-};
-
 function getRequiredEnv(name: string): string {
   const value = process.env[name]?.trim() ?? "";
   if (!value) {
     throw new Error(`${name} is not set`);
   }
   return value;
-}
-
-function hasCloudflareR2Config(): boolean {
-  return Boolean(
-    process.env.CLOUDFLARE_R2_ENDPOINT &&
-      process.env.CLOUDFLARE_R2_ACCESS_KEY_ID &&
-      process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY &&
-      process.env.CLOUDFLARE_R2_BUCKET,
-  );
 }
 
 function getR2Client(): { client: S3Client; bucket: string } {
@@ -53,20 +35,9 @@ export async function uploadObject(params: {
   bucket: string;
   path: string;
   file: File;
-  supabaseFallback?: SupabaseStorageFallback;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { bucket, path, file, supabaseFallback } = params;
+  const { bucket, path, file } = params;
   if (!file || file.size === 0) return { ok: false, error: "Leere Datei." };
-
-  if (!hasCloudflareR2Config()) {
-    if (!supabaseFallback) {
-      return { ok: false, error: "Cloudflare R2 ist nicht konfiguriert." };
-    }
-    const { error } = await supabaseFallback.storage
-      .from(bucket)
-      .upload(path, file, { upsert: false });
-    return error ? { ok: false, error: error.message ?? "Upload fehlgeschlagen." } : { ok: true };
-  }
 
   try {
     const { client, bucket: r2Bucket } = getR2Client();
@@ -83,6 +54,9 @@ export async function uploadObject(params: {
     return { ok: true };
   } catch (error) {
     console.error(error);
+    if (error instanceof Error && error.message.includes("is not set")) {
+      return { ok: false, error: "Cloudflare R2 ist nicht konfiguriert." };
+    }
     return { ok: false, error: "Cloudflare-Upload fehlgeschlagen." };
   }
 }
@@ -90,18 +64,9 @@ export async function uploadObject(params: {
 export async function removeObjects(params: {
   bucket: string;
   paths: string[];
-  supabaseFallback?: SupabaseStorageFallback;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { bucket, paths, supabaseFallback } = params;
+  const { bucket, paths } = params;
   if (!paths.length) return { ok: true };
-
-  if (!hasCloudflareR2Config()) {
-    if (!supabaseFallback) {
-      return { ok: false, error: "Cloudflare R2 ist nicht konfiguriert." };
-    }
-    const { error } = await supabaseFallback.storage.from(bucket).remove(paths);
-    return error ? { ok: false, error: error.message ?? "Löschen fehlgeschlagen." } : { ok: true };
-  }
 
   try {
     const { client, bucket: r2Bucket } = getR2Client();
@@ -115,6 +80,9 @@ export async function removeObjects(params: {
     return { ok: true };
   } catch (error) {
     console.error(error);
+    if (error instanceof Error && error.message.includes("is not set")) {
+      return { ok: false, error: "Cloudflare R2 ist nicht konfiguriert." };
+    }
     return { ok: false, error: "Cloudflare-Löschen fehlgeschlagen." };
   }
 }

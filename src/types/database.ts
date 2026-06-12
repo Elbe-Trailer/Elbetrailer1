@@ -149,6 +149,12 @@ export type RentalCalendarBlock = {
   created_at: string;
 };
 
+export type ListingViewDaily = {
+  listing_id: string;
+  view_date: string;
+  view_count: number;
+};
+
 export type RentalBooking = {
   id: string;
   rental_unit_id: string;

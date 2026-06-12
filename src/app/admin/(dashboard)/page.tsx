@@ -1,9 +1,16 @@
 import Link from "next/link";
+import { getListingAnalytics } from "@/lib/analytics/listing-stats";
 import { requireAdmin } from "@/lib/auth/admin";
+
+function formatPercent(value: number): string {
+  if (value === 0) return "0 %";
+  return `${value.toLocaleString("de-DE", { maximumFractionDigits: 1 })} %`;
+}
 
 export default async function AdminHomePage() {
   const { supabase } = await requireAdmin();
-  const [inquiriesNewCountResult, contactInquiriesNewCountResult] = await Promise.all([
+  const [inquiriesNewCountResult, contactInquiriesNewCountResult, analytics] =
+    await Promise.all([
     supabase
       .from("inquiries")
       .select("id", { count: "exact", head: true })
@@ -12,6 +19,7 @@ export default async function AdminHomePage() {
       .from("contact_inquiries")
       .select("id", { count: "exact", head: true })
       .eq("status", "neu"),
+    getListingAnalytics(supabase, "30d"),
   ]);
   const inquiriesNewCount = inquiriesNewCountResult.error?.message?.includes("status")
     ? 0
@@ -31,6 +39,41 @@ export default async function AdminHomePage() {
       <p className="text-zinc-600 dark:text-zinc-400">
         Verwalten Sie Inserate, Zubehör, Portfolio-Einträge und Blog-Beiträge.
       </p>
+
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            Statistik (letzte 30 Tage)
+          </h2>
+          <Link
+            href="/admin/analytics"
+            className="text-sm text-amber-700 hover:underline dark:text-amber-400"
+          >
+            Details anzeigen →
+          </Link>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+            <p className="text-sm text-zinc-500">Aufrufe</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900 dark:text-white">
+              {analytics.totalViews.toLocaleString("de-DE")}
+            </p>
+          </div>
+          <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+            <p className="text-sm text-zinc-500">Anfragen</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900 dark:text-white">
+              {analytics.totalInquiries.toLocaleString("de-DE")}
+            </p>
+          </div>
+          <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+            <p className="text-sm text-zinc-500">Ø Conversion</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900 dark:text-white">
+              {formatPercent(analytics.averageConversionRate)}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <ul className="grid gap-3 sm:grid-cols-2">
         <Link
           href="/admin/listings"

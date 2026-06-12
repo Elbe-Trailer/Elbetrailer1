@@ -1,7 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/admin";
-import { publicStorageUrl } from "@/lib/storage";
+import StorageImage from "@/components/StorageImage";
 import { deleteBlogPost } from "./actions";
 import ConfirmDeleteButton from "./ConfirmDeleteButton";
 
@@ -119,22 +118,22 @@ export default async function AdminBlogPage({ searchParams }: Props) {
                   row.published && row.published_at
                     ? new Date(row.published_at).toLocaleDateString("de-DE")
                     : new Date(row.updated_at).toLocaleDateString("de-DE");
-                const cover =
+                const coverPath =
                   row.cover_image_path != null && row.cover_image_path !== ""
-                    ? publicStorageUrl("blog", row.cover_image_path)
+                    ? row.cover_image_path
                     : null;
                 return (
                   <tr key={row.id} className="bg-white dark:bg-zinc-900">
                     <td className="px-4 py-3">
-                      {cover ? (
+                      {coverPath ? (
                         <div className="relative h-12 w-16 overflow-hidden rounded border border-zinc-200 dark:border-zinc-700">
-                          <Image
-                            src={cover}
+                          <StorageImage
+                            bucket="blog"
+                            path={coverPath}
                             alt=""
                             fill
                             className="object-cover"
                             sizes="64px"
-                            unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
                           />
                         </div>
                       ) : (

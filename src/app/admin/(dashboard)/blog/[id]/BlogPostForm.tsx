@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import BlogContent from "@/components/BlogMarkdown";
 import BlogRichTextEditor from "@/components/blog/BlogRichTextEditor";
-import { publicStorageUrl } from "@/lib/storage";
+import StorageImage from "@/components/StorageImage";
 import type { BlogPost } from "@/types/database";
 import { saveBlogPost, type SaveBlogPostState } from "../actions";
 
@@ -52,11 +52,10 @@ export default function BlogPostForm({ post, categories }: Props) {
     return slugifyHint(title);
   }, [slug, title]);
 
-  const coverSrc =
+  const savedCoverPath =
     post?.cover_image_path != null && post.cover_image_path !== ""
-      ? publicStorageUrl("blog", post.cover_image_path)
+      ? post.cover_image_path
       : null;
-  const effectiveCoverPreview = selectedCoverPreview ?? coverSrc;
 
   useEffect(() => {
     return () => {
@@ -192,15 +191,26 @@ export default function BlogPostForm({ post, categories }: Props) {
               Dieses Bild wird automatisch als Vorschaubild in den Blog-Listen
               verwendet.
             </p>
-            {effectiveCoverPreview ? (
+            {selectedCoverPreview ? (
               <div className="relative mt-3 h-40 w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
                 <Image
-                  src={effectiveCoverPreview}
+                  src={selectedCoverPreview}
                   alt=""
                   fill
                   className="object-cover"
                   sizes="400px"
-                  unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
+                  unoptimized
+                />
+              </div>
+            ) : savedCoverPath ? (
+              <div className="relative mt-3 h-40 w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
+                <StorageImage
+                  bucket="blog"
+                  path={savedCoverPath}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="400px"
                 />
               </div>
             ) : null}

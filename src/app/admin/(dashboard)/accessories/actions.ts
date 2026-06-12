@@ -29,7 +29,6 @@ async function uploadAccImage(
     bucket: "accessories",
     path,
     file,
-    supabaseFallback: supabase,
   });
   return up.ok ? path : null;
 }
@@ -129,7 +128,6 @@ export async function deleteAccessory(formData: FormData) {
     await removeObjects({
       bucket: "accessories",
       paths: [row.image_path],
-      supabaseFallback: supabase,
     });
   }
   await supabase.from("accessories").delete().eq("id", id);

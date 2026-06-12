@@ -52,7 +52,6 @@ export async function POST(req: Request) {
     bucket: "blog",
     path,
     file,
-    supabaseFallback: supabase,
   });
   if (!up.ok) {
     return NextResponse.json(

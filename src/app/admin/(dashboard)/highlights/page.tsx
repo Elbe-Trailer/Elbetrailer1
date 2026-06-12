@@ -1,7 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/admin";
-import { publicStorageUrl } from "@/lib/storage";
+import StorageImage from "@/components/StorageImage";
 import { deleteHighlight, setHighlight } from "./actions";
 
 export default async function AdminHighlightsPage() {
@@ -102,13 +101,13 @@ export default async function AdminHighlightsPage() {
               </span>
               {thumb ? (
                 <div className="relative h-14 w-20 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
-                  <Image
-                    src={publicStorageUrl("listings", thumb)}
+                  <StorageImage
+                    bucket="listings"
+                    path={thumb}
                     alt=""
                     fill
                     className="object-cover"
                     sizes="80px"
-                    unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
                   />
                 </div>
               ) : (

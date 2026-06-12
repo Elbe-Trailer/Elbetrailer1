@@ -1,10 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
+import StorageImage from "@/components/StorageImage";
 import { formatEurFromCents } from "@/lib/format";
 import { calculateRentalPrice } from "@/lib/rentalPricing";
-import { publicStorageUrl } from "@/lib/storage";
 import type { Accessory, AccessorySelection } from "@/types/database";
 
 export type ConfiguratorAccessory = Accessory & {
@@ -207,13 +206,13 @@ export default function Configurator({
                     <div className="flex gap-3">
                       {a.image_path ? (
                         <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
-                          <Image
-                            src={publicStorageUrl("accessories", a.image_path)}
+                          <StorageImage
+                            bucket="accessories"
+                            path={a.image_path}
                             alt=""
                             fill
                             className="object-cover"
                             sizes="80px"
-                            unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
                           />
                         </div>
                       ) : null}

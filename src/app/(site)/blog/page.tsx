@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import ContentContainer from "@/components/ContentContainer";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { createClient } from "@/lib/supabase/server";
-import { publicStorageUrl } from "@/lib/storage";
+import StorageImage from "@/components/StorageImage";
 
 type Props = { searchParams: Promise<{ cat?: string }> };
 
@@ -133,9 +132,9 @@ export default async function BlogListPage({ searchParams }: Props) {
           <ul className="space-y-10">
             {posts.map((post) => {
               const category = post.blog_categories;
-              const cover =
+              const coverPath =
                 post.cover_image_path != null && post.cover_image_path !== ""
-                  ? publicStorageUrl("blog", post.cover_image_path)
+                  ? post.cover_image_path
                   : null;
               const dateLabel = post.published_at
                 ? new Date(post.published_at).toLocaleDateString("de-DE", {
@@ -148,18 +147,18 @@ export default async function BlogListPage({ searchParams }: Props) {
                 <li key={post.id}>
                   <article className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                     <div className="md:flex">
-                      {cover ? (
+                      {coverPath ? (
                         <Link
                           href={`/blog/${post.slug}`}
                           className="relative block aspect-[16/10] w-full shrink-0 md:aspect-auto md:w-72"
                         >
-                          <Image
-                            src={cover}
+                          <StorageImage
+                            bucket="blog"
+                            path={coverPath}
                             alt={post.title}
                             fill
                             className="object-cover"
                             sizes="(max-width: 768px) 100vw, 288px"
-                            unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
                           />
                         </Link>
                       ) : null}

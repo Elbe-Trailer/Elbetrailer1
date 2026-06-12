@@ -13,6 +13,7 @@ const nav = [
   { href: "/admin/blog", label: "Blog" },
   { href: "/admin/blog/categories", label: "Blog-Kategorien" },
   { href: "/admin/inquiries", label: "Anfragen" },
+  { href: "/admin/analytics", label: "Statistik" },
   { href: "/admin/categories", label: "Kategorien" },
   { href: "/admin/accessory-categories", label: "Zubehör-Kategorien" },
 ];

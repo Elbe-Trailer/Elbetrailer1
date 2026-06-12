@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AdminInlinePostEditor from "@/components/blog/AdminInlinePostEditor";
 import BlogMarkdown from "@/components/BlogMarkdown";
 import ContentContainer from "@/components/ContentContainer";
+import StorageImage from "@/components/StorageImage";
 import JsonLd from "@/components/seo/JsonLd";
 import { getOptionalAdmin } from "@/lib/auth/admin";
 import { buildPageMetadata } from "@/lib/seo/metadata";
@@ -63,10 +63,11 @@ export default async function BlogPostPublicPage({ params }: Props) {
     | { slug: string; name: string }[];
   const category = Array.isArray(rel) ? rel[0] : rel;
 
-  const cover =
+  const coverPath =
     post.cover_image_path != null && post.cover_image_path !== ""
-      ? publicStorageUrl("blog", post.cover_image_path)
+      ? post.cover_image_path
       : null;
+  const cover = coverPath ? publicStorageUrl("blog", coverPath) : null;
 
   const dateLabel = post.published_at
     ? new Date(post.published_at).toLocaleDateString("de-DE", {
@@ -125,16 +126,16 @@ export default async function BlogPostPublicPage({ params }: Props) {
           ) : null}
         </header>
 
-        {cover ? (
+        {coverPath ? (
           <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
-            <Image
-              src={cover}
+            <StorageImage
+              bucket="blog"
+              path={coverPath}
               alt={post.title}
               fill
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 768px"
               priority
-              unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
             />
           </div>
         ) : null}

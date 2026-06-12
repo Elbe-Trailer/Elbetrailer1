@@ -61,7 +61,6 @@ export async function saveBlogPost(
       bucket: "blog",
       path,
       file: file!,
-      supabaseFallback: supabase,
     });
     if (!up.ok) {
       return { ok: false, error: formatUploadErrorMessage(up.error) };
@@ -164,7 +163,6 @@ export async function deleteBlogPost(formData: FormData) {
     await removeObjects({
       bucket: "blog",
       paths: [row.cover_image_path],
-      supabaseFallback: supabase,
     });
   }
 

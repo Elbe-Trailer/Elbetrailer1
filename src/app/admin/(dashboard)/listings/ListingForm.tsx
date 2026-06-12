@@ -1,7 +1,14 @@
 "use client";
 
-import { useActionState, useMemo, useRef, useState, type DragEvent } from "react";
-import Image from "next/image";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react";
+import StorageImage from "@/components/StorageImage";
 import type {
   AccessoryForListingConfig,
   Category,
@@ -9,7 +16,6 @@ import type {
   ListingType,
 } from "@/types/database";
 import { normalizeSlug } from "@/lib/slug";
-import { publicStorageUrl } from "@/lib/storage";
 import SuccessChoiceDialog from "@/components/admin/SuccessChoiceDialog";
 import { saveListing, type SaveListingState } from "./actions";
 
@@ -91,6 +97,11 @@ export default function ListingForm({
   const [title, setTitle] = useState(listing?.title ?? "");
   const [slug, setSlug] = useState(listing?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(Boolean(listing?.slug));
+  const [galleryPaths, setGalleryPaths] = useState(currentGalleryPaths);
+
+  useEffect(() => {
+    setGalleryPaths(currentGalleryPaths);
+  }, [currentGalleryPaths]);
 
   function handleImageSelection(files: FileList | null) {
     if (!files) {
@@ -133,6 +144,9 @@ export default function ListingForm({
       {listing?.id ? (
         <input type="hidden" name="id" value={listing.id} />
       ) : null}
+      {galleryPaths.map((path) => (
+        <input key={path} type="hidden" name="gallery_path" value={path} />
+      ))}
 
       {state?.ok === false ? (
         <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/50 dark:text-red-200">
@@ -142,21 +156,32 @@ export default function ListingForm({
 
       <div>
         <p className="mb-2 text-sm font-medium">Aktuelle Bilder</p>
-        {currentGalleryPaths.length ? (
+        {galleryPaths.length ? (
           <ul className="mb-3 flex flex-wrap gap-2">
-            {currentGalleryPaths.map((path) => (
+            {galleryPaths.map((path) => (
               <li
                 key={path}
                 className="relative h-20 w-28 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
               >
-                <Image
-                  src={publicStorageUrl("listings", path)}
+                <StorageImage
+                  bucket="listings"
+                  path={path}
                   alt=""
                   fill
                   className="object-cover"
                   sizes="112px"
-                  unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
                 />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setGalleryPaths((prev) => prev.filter((p) => p !== path))
+                  }
+                  className="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/75 text-base font-medium leading-none text-white shadow-sm transition hover:bg-red-600"
+                  aria-label="Bild entfernen"
+                  title="Bild entfernen"
+                >
+                  ×
+                </button>
               </li>
             ))}
           </ul>
@@ -199,9 +224,10 @@ export default function ListingForm({
             </p>
           ) : null}
         </label>
-        {currentGalleryPaths.length ? (
+        {galleryPaths.length ? (
           <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-            Bereits gespeichert: {currentGalleryPaths.length} Bild(er)
+            {galleryPaths.length} Bild(er) werden beim Speichern behalten. Entfernte
+            Bilder werden endgültig gelöscht.
           </p>
         ) : (
           <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">

@@ -22,7 +22,6 @@ export async function deleteListing(formData: FormData) {
     await removeObjects({
       bucket: "listings",
       paths,
-      supabaseFallback: supabase,
     });
   }
   await supabase.from("listings").delete().eq("id", id);
@@ -195,6 +194,7 @@ export async function saveListing(
   }
 
   const newPaths: string[] = [];
+  const uploadErrors: string[] = [];
   for (const file of files) {
     if (!file || typeof file === "string" || file.size === 0) continue;
     const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -203,22 +203,48 @@ export async function saveListing(
       bucket: "listings",
       path,
       file,
-      supabaseFallback: supabase,
     });
-    if (up.ok) newPaths.push(path);
+    if (up.ok) {
+      newPaths.push(path);
+    } else {
+      uploadErrors.push(up.error);
+    }
+  }
+  if (uploadErrors.length > 0) {
+    return {
+      ok: false,
+      error:
+        uploadErrors[0] === "Cloudflare R2 ist nicht konfiguriert."
+          ? "Bild-Upload fehlgeschlagen: Cloudflare R2 ist auf dem Server nicht konfiguriert."
+          : `Bild-Upload fehlgeschlagen: ${uploadErrors[0]}`,
+    };
   }
 
-  if (newPaths.length) {
-    const { data: current } = await supabase
-      .from("listings")
-      .select("gallery_paths")
-      .eq("id", listingId)
-      .single();
-    const existing = (current?.gallery_paths as string[]) ?? [];
+  const keptPaths = formData
+    .getAll("gallery_path")
+    .map((v) => String(v).trim())
+    .filter(Boolean);
+  const { data: current } = await supabase
+    .from("listings")
+    .select("gallery_paths")
+    .eq("id", listingId)
+    .single();
+  const existing = (current?.gallery_paths as string[]) ?? [];
+  const finalPaths = [...keptPaths, ...newPaths];
+  const toRemove = existing.filter((p) => !finalPaths.includes(p));
+
+  if (toRemove.length) {
+    await removeObjects({
+      bucket: "listings",
+      paths: toRemove,
+    });
+  }
+
+  if (toRemove.length || newPaths.length || finalPaths.length !== existing.length) {
     await supabase
       .from("listings")
       .update({
-        gallery_paths: [...existing, ...newPaths],
+        gallery_paths: finalPaths,
         updated_at: new Date().toISOString(),
       })
       .eq("id", listingId);

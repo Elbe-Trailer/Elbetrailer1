@@ -1,8 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
+import StorageImage from "@/components/StorageImage";
 import { formatEurFromCents } from "@/lib/format";
 import { listingPublicPath } from "@/lib/listing-url";
-import { publicStorageUrl } from "@/lib/storage";
 import type { Listing, ListingType } from "@/types/database";
 
 type Props = {
@@ -50,13 +49,13 @@ export default function ListingCard({
     >
       <div className="relative aspect-[4/3] w-full bg-zinc-100 dark:bg-zinc-800">
         {first ? (
-          <Image
-            src={publicStorageUrl("listings", first)}
+          <StorageImage
+            bucket="listings"
+            path={first}
             alt={listing.title}
             fill
             className="object-cover transition group-hover:scale-[1.02]"
             sizes="(max-width:768px) 100vw, 33vw"
-            unoptimized={!process.env.NEXT_PUBLIC_SUPABASE_URL}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-zinc-400">

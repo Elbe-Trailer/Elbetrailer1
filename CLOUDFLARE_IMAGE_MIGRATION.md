@@ -14,9 +14,9 @@ Set these variables in the deployment environment and local `.env`:
 - `NEXT_PUBLIC_CLOUDFLARE_PUBLIC_BASE_URL`
 - optional: `NEXT_PUBLIC_CLOUDFLARE_IMAGE_VARIANT`
 
-## 2) Deploy dual-read application code
+## 2) Deploy application code
 
-Deploy the app changes first. The app resolves image URLs through `publicStorageUrl(...)` and can still fall back to Supabase URL generation if Cloudflare base URL is not configured.
+Deploy the app changes first. Uploads and image URLs use Cloudflare R2 only (`publicStorageUrl(...)`).
 
 ## 3) Run migration (idempotent)
 
