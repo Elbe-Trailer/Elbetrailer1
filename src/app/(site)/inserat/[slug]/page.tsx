@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { after } from "next/server";
 import { notFound, permanentRedirect } from "next/navigation";
 import ContentContainer from "@/components/ContentContainer";
 import JsonLd from "@/components/seo/JsonLd";
@@ -82,7 +83,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
   }
 
   const admin = await getOptionalAdmin();
-  void recordListingView(listing.id, { isAdminPreview: !!admin });
+  const listingId = listing.id;
+  const isAdminPreview = !!admin;
+  after(async () => {
+    await recordListingView(listingId, { isAdminPreview });
+  });
 
   const id = listing.id;
 

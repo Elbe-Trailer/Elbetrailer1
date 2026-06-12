@@ -25,8 +25,17 @@ export async function recordListingView(
 
   try {
     const supabase = createServiceClient();
-    await supabase.rpc("increment_listing_view", { p_listing_id: listingId });
-  } catch {
-    // Non-critical: do not block page rendering on tracking failures.
+    const { error } = await supabase.rpc("increment_listing_view", {
+      p_listing_id: listingId,
+    });
+    if (error) {
+      console.error(
+        "[analytics] increment_listing_view failed:",
+        error.message,
+        error.code,
+      );
+    }
+  } catch (err) {
+    console.error("[analytics] increment_listing_view threw:", err);
   }
 }

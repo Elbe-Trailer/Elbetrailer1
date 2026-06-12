@@ -83,6 +83,13 @@ export async function getListingAnalytics(
     })(),
   ]);
 
+  if (viewsResult.error) {
+    throw new Error(
+      `Aufruf-Statistik nicht verfügbar (${viewsResult.error.message}). ` +
+        "Bitte supabase/apply_listing_analytics.sql im Supabase SQL Editor ausführen.",
+    );
+  }
+
   const listings = listingsResult.data ?? [];
   const viewsByListing = new Map<string, number>();
   for (const row of viewsResult.data ?? []) {
