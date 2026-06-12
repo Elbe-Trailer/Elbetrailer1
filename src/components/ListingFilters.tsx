@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type MouseEvent, type RefObject } from "react";
 import { FILTER_PARAM_KEYS, type ListingFilters } from "@/lib/listingFilters";
 
 type FilterCategory = { slug: string; name: string };
@@ -64,6 +64,66 @@ function formatEur(value: number): string {
   return `${new Intl.NumberFormat("de-DE").format(value)} EUR`;
 }
 
+const POPOVER_VIEWPORT_PADDING = 16;
+
+function clearPopoverPosition(panel: HTMLDivElement) {
+  panel.style.position = "";
+  panel.style.top = "";
+  panel.style.left = "";
+  panel.style.right = "";
+  panel.style.width = "";
+}
+
+function useFilterChipToggle(chipKey: string, onToggle: (key: string) => void) {
+  return (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onToggle(chipKey);
+  };
+}
+
+function usePopoverViewportAlign(isOpen: boolean, anchorRef: RefObject<HTMLDivElement | null>, panelRef: RefObject<HTMLDivElement | null>) {
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+
+    const align = () => {
+      const anchor = anchorRef.current;
+      const panel = panelRef.current;
+      if (!anchor || !panel) return;
+
+      const anchorRect = anchor.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const panelWidth = panel.offsetWidth;
+      let left = 0;
+
+      const panelRight = anchorRect.left + panelWidth;
+      if (panelRight > viewportWidth - POPOVER_VIEWPORT_PADDING) {
+        left -= panelRight - (viewportWidth - POPOVER_VIEWPORT_PADDING);
+      }
+
+      const panelLeft = anchorRect.left + left;
+      if (panelLeft < POPOVER_VIEWPORT_PADDING) {
+        left += POPOVER_VIEWPORT_PADDING - panelLeft;
+      }
+
+      panel.style.left = left !== 0 ? `${left}px` : "";
+    };
+
+    align();
+    const panel = panelRef.current;
+    const resizeObserver = panel ? new ResizeObserver(align) : null;
+    resizeObserver?.observe(panel!);
+
+    window.addEventListener("resize", align);
+    window.addEventListener("scroll", align, true);
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", align);
+      window.removeEventListener("scroll", align, true);
+      if (panel) clearPopoverPosition(panel);
+    };
+  }, [isOpen, anchorRef, panelRef]);
+}
+
 function FilterChipMultiSelect({
   chipKey,
   openKey,
@@ -84,25 +144,31 @@ function FilterChipMultiSelect({
   highlighted?: boolean;
 }) {
   const isOpen = openKey === chipKey;
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const handleToggle = useFilterChipToggle(chipKey, onToggle);
+  usePopoverViewportAlign(isOpen, anchorRef, panelRef);
   return (
-    <div
-      className={`relative inline-flex items-center rounded-full border px-3 py-2 text-sm ${
-        highlighted
-          ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-          : "border-zinc-300 bg-white text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-      }`}
-    >
+    <div ref={anchorRef} className="relative inline-flex">
       <button
         type="button"
-        onClick={() => onToggle(chipKey)}
-        className="pr-5 text-inherit outline-none"
+        onClick={handleToggle}
+        className={`relative touch-manipulation inline-flex items-center rounded-full border px-3 py-2 pr-8 text-sm ${
+          isOpen || highlighted
+            ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+            : "border-zinc-300 bg-white text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+        }`}
       >
         {label}
         {selectedValues.length ? ` (${selectedValues.length})` : ""}
+        <span className="pointer-events-none absolute right-3 text-xs">v</span>
       </button>
-      <span className="pointer-events-none absolute right-3 text-xs">v</span>
       {isOpen ? (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-56 rounded-lg border border-zinc-200 bg-white p-2 text-zinc-800 shadow-xl dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
+        <div
+          ref={panelRef}
+          data-filter-panel
+          className="absolute left-0 top-[calc(100%+6px)] z-[60] min-w-56 max-w-[calc(100vw-2rem)] rounded-lg border border-zinc-200 bg-white p-2 text-zinc-800 shadow-xl dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+        >
           <div className="max-h-56 overflow-auto space-y-1">
             {options.map((opt) => (
               <label key={opt.value} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
@@ -201,12 +267,16 @@ function SliderChipPopover({
   children: React.ReactNode;
 }) {
   const isOpen = openKey === chipKey;
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const handleToggle = useFilterChipToggle(chipKey, onToggle);
+  usePopoverViewportAlign(isOpen, anchorRef, panelRef);
   return (
-    <div className="relative inline-flex">
+    <div ref={anchorRef} className="relative inline-flex">
       <button
         type="button"
-        onClick={() => onToggle(chipKey)}
-        className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium ${
+        onClick={handleToggle}
+        className={`touch-manipulation inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium ${
           isOpen
             ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
             : "border-zinc-300 bg-white text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
@@ -216,7 +286,11 @@ function SliderChipPopover({
         <span>v</span>
       </button>
       {isOpen ? (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-[min(92vw,560px)] rounded-xl border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+        <div
+          ref={panelRef}
+          data-filter-panel
+          className="absolute left-0 top-[calc(100%+6px)] z-[60] w-[min(calc(100vw-2rem),560px)] rounded-xl border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+        >
           {children}
         </div>
       ) : null}
@@ -344,13 +418,13 @@ export default function ListingFilters({
   }, []);
 
   useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => {
-      if (!rootRef.current) return;
-      const target = event.target as Node;
-      if (!rootRef.current.contains(target)) {
-        setOpenDropdown(null);
-        setOpenPanel(null);
-      }
+    const onClickOutside = (event: globalThis.MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (rootRef.current?.contains(target)) return;
+      if (target instanceof Element && target.closest("[data-filter-panel]")) return;
+      setOpenDropdown(null);
+      setOpenPanel(null);
     };
 
     const onEscape = (event: KeyboardEvent) => {
@@ -360,10 +434,10 @@ export default function ListingFilters({
       }
     };
 
-    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("click", onClickOutside);
     document.addEventListener("keydown", onEscape);
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("click", onClickOutside);
       document.removeEventListener("keydown", onEscape);
     };
   }, []);
@@ -379,8 +453,8 @@ export default function ListingFilters({
       }}
       className="space-y-3"
     >
-      <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex flex-wrap gap-2">
+      <div className="overflow-visible rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex flex-wrap gap-2 overflow-visible">
           {showCategoryFilter ? (
             <FilterChipMultiSelect
               chipKey="category"

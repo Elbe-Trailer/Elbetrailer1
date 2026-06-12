@@ -21,7 +21,13 @@ const remotePatterns = Array.from(cloudflareHosts).map((hostname) => ({
   pathname: "/**",
 }));
 
+const devAllowedOrigins =
+  process.env.DEV_ALLOWED_ORIGINS?.split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean) ?? ["127.0.0.1", "localhost"];
+
 const nextConfig: NextConfig = {
+  allowedDevOrigins: devAllowedOrigins,
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb",
