@@ -3,6 +3,7 @@
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
 import { revalidatePath } from "next/cache";
+import { revalidateSiteCategories } from "@/lib/cache/revalidate-site";
 import { redirect } from "next/navigation";
 
 export type SaveCategoryState = undefined | { ok: false; error: string };
@@ -38,6 +39,8 @@ export async function saveCategory(
       return { ok: false, error: "Anlegen fehlgeschlagen (Slug eindeutig?)." };
     }
     revalidatePath("/admin/categories");
+    revalidatePath("/");
+    revalidateSiteCategories();
     redirect(withAdminSavedParam("/admin/categories"));
   }
 
@@ -51,6 +54,8 @@ export async function saveCategory(
   }
 
   revalidatePath("/admin/categories");
+  revalidatePath("/");
+  revalidateSiteCategories();
   redirect(withAdminSavedParam("/admin/categories"));
 }
 
@@ -79,5 +84,7 @@ export async function deleteCategory(formData: FormData) {
   }
 
   revalidatePath("/admin/categories");
+  revalidatePath("/");
+  revalidateSiteCategories();
   redirect("/admin/categories");
 }

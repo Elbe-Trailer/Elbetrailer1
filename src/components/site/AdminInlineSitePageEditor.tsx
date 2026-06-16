@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { updateSitePageContent } from "@/app/(site)/site-pages/actions";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import BlogMarkdown from "@/components/BlogMarkdown";
 import BlogRichTextEditor from "@/components/blog/BlogRichTextEditor";
 import type { SitePageSlug } from "@/lib/site-pages";
@@ -12,15 +13,14 @@ type Props = {
   slug: SitePageSlug;
   title: string;
   content: string;
-  isAdmin: boolean;
 };
 
 export default function AdminInlineSitePageEditor({
   slug,
   title,
   content: initialContent,
-  isAdmin,
 }: Props) {
+  const isAdmin = useIsAdmin();
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(initialContent);
   const [state, formAction, pending] = useActionState<State, FormData>(

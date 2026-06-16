@@ -6,6 +6,7 @@ import { listingPublicPath } from "@/lib/listing-url";
 import { ensureUniqueSlug, normalizeSlug } from "@/lib/slug";
 import { removeObjects, uploadObject } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
+import { revalidateSiteHome } from "@/lib/cache/revalidate-site";
 import { redirect } from "next/navigation";
 
 export async function deleteListing(formData: FormData) {
@@ -26,6 +27,7 @@ export async function deleteListing(formData: FormData) {
   }
   await supabase.from("listings").delete().eq("id", id);
   revalidatePath("/");
+  revalidateSiteHome();
   revalidatePath("/admin/listings");
   redirect("/admin/listings");
 }
@@ -265,6 +267,7 @@ export async function saveListing(
   }
 
   revalidatePath("/");
+  revalidateSiteHome();
   revalidatePath("/admin/listings");
   revalidatePath(listingPublicPath(slug));
 

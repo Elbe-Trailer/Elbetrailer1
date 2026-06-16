@@ -3,6 +3,7 @@
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
 import { revalidatePath } from "next/cache";
+import { revalidateSiteHome } from "@/lib/cache/revalidate-site";
 import { redirect } from "next/navigation";
 
 export async function setHighlight(formData: FormData) {
@@ -17,6 +18,7 @@ export async function setHighlight(formData: FormData) {
     position,
   });
   revalidatePath("/");
+  revalidateSiteHome();
   revalidatePath("/admin/highlights");
   redirect(withAdminSavedParam("/admin/highlights"));
 }
@@ -27,6 +29,7 @@ export async function deleteHighlight(formData: FormData) {
   const { supabase } = await requireAdmin();
   await supabase.from("listing_highlights").delete().eq("listing_id", listing_id);
   revalidatePath("/");
+  revalidateSiteHome();
   revalidatePath("/admin/highlights");
   redirect("/admin/highlights");
 }

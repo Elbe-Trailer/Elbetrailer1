@@ -10,7 +10,6 @@ type TrustCopy = {
 
 type Props = {
   copy: TrustCopy;
-  isAdmin: boolean;
 };
 
 function IconCart({ className }: { className?: string }) {
@@ -103,7 +102,7 @@ const TRUST_ITEMS = [
   },
 ] as const;
 
-export default function HomeTrustStrip({ copy, isAdmin }: Props) {
+export default function HomeTrustStrip({ copy }: Props) {
   const values = [copy.item1, copy.item2, copy.item3, copy.item4];
 
   return (
@@ -122,7 +121,6 @@ export default function HomeTrustStrip({ copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey={key}
                   value={values[index] || fallback}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </span>

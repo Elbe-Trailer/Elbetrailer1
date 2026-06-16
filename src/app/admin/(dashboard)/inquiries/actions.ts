@@ -8,7 +8,11 @@ export async function deleteInquiry(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return;
   const { supabase } = await requireAdmin();
-  await supabase.from("inquiries").delete().eq("id", id);
+  const { error } = await supabase.from("inquiries").delete().eq("id", id);
+  if (error) {
+    console.error(error);
+    redirect("/admin/inquiries?error=delete-failed");
+  }
   revalidatePath("/admin/inquiries");
   redirect("/admin/inquiries");
 }
@@ -17,7 +21,11 @@ export async function deleteContactInquiry(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return;
   const { supabase } = await requireAdmin();
-  await supabase.from("contact_inquiries").delete().eq("id", id);
+  const { error } = await supabase.from("contact_inquiries").delete().eq("id", id);
+  if (error) {
+    console.error(error);
+    redirect("/admin/inquiries?error=delete-failed");
+  }
   revalidatePath("/admin/inquiries");
   redirect("/admin/inquiries");
 }

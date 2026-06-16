@@ -5,7 +5,15 @@ import {
   getPublicSupabaseUrl,
 } from "@/lib/supabase/public-env";
 
+function hasSupabaseSessionCookie(request: NextRequest) {
+  return request.cookies.getAll().some(({ name }) => name.startsWith("sb-"));
+}
+
 export async function updateSession(request: NextRequest) {
+  if (!hasSupabaseSessionCookie(request)) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });

@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { updateMarketingContent } from "@/app/(site)/marketing-content/actions";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import type { MarketingContentKey } from "@/lib/marketing-content";
 
 type State = { ok: false; error: string } | { ok: true } | undefined;
@@ -9,7 +10,6 @@ type State = { ok: false; error: string } | { ok: true } | undefined;
 type Props = {
   contentKey: MarketingContentKey;
   value: string;
-  isAdmin: boolean;
   multiline?: boolean;
   inlineOnly?: boolean;
   className?: string;
@@ -18,11 +18,11 @@ type Props = {
 export default function AdminInlineMarketingContentEditor({
   contentKey,
   value: initialValue,
-  isAdmin,
   multiline = false,
   inlineOnly = false,
   className,
 }: Props) {
+  const isAdmin = useIsAdmin();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initialValue);
   const [state, formAction, pending] = useActionState<State, FormData>(

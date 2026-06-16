@@ -4,9 +4,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import { buildOrganizationSchema } from "@/lib/seo/listing-schema";
 import { buildSitePageMetadata } from "@/lib/seo/site-page-metadata";
 import ContentContainer from "@/components/ContentContainer";
-import { getOptionalAdmin } from "@/lib/auth/admin";
-import { getSitePageContent } from "@/lib/site-pages";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedSitePageContent } from "@/lib/site-pages";
 import ContactInquiryForm from "./ContactInquiryForm";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,9 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function KontaktPage() {
-  const admin = await getOptionalAdmin();
-  const supabase = admin?.supabase ?? (await createClient());
-  const page = await getSitePageContent(supabase, "kontakt");
+  const page = await getCachedSitePageContent("kontakt");
 
   return (
     <ContentContainer>
@@ -31,7 +27,6 @@ export default async function KontaktPage() {
           slug="kontakt"
           title={page.title}
           content={page.content}
-          isAdmin={Boolean(admin)}
         />
         <section className="rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
           <ContactInquiryForm />

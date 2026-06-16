@@ -10,7 +10,10 @@ import {
   updateInquiryStatus,
 } from "./actions";
 
-export default async function AdminInquiriesPage() {
+type Props = { searchParams: Promise<{ error?: string }> };
+
+export default async function AdminInquiriesPage({ searchParams }: Props) {
+  const { error } = await searchParams;
   const { supabase } = await requireAdmin();
   const [inquiriesResult, contactInquiriesResult] = await Promise.all([
     supabase
@@ -94,6 +97,12 @@ export default async function AdminInquiriesPage() {
       <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
         Anfragen
       </h1>
+
+      {error === "delete-failed" ? (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          Löschen fehlgeschlagen.
+        </p>
+      ) : null}
 
       {!rows?.length ? (
         <p className="text-zinc-500">Noch keine Inserat-Anfragen.</p>

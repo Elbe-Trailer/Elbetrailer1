@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { sanitizeBlogHtml } from "@/lib/blog-content";
 import { removeObjects, uploadObject } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
+import { revalidateSiteHome } from "@/lib/cache/revalidate-site";
 import { normalizeSlug } from "@/lib/slug";
 import { redirect } from "next/navigation";
 
@@ -94,8 +95,10 @@ export async function saveBlogPost(
         error: "Anlegen fehlgeschlagen (Slug eindeutig?).",
       };
     }
-    revalidatePath("/blog");
-    redirect(withAdminSavedParam(`/admin/blog/${inserted.id}`));
+  revalidatePath("/blog");
+  revalidatePath("/");
+  revalidateSiteHome();
+  redirect(withAdminSavedParam(`/admin/blog/${inserted.id}`));
   }
 
   const { data: existing } = await supabase
@@ -144,6 +147,8 @@ export async function saveBlogPost(
   if (existing?.slug && existing.slug !== slug) {
     revalidatePath(`/blog/${existing.slug}`);
   }
+  revalidatePath("/");
+  revalidateSiteHome();
   revalidatePath("/admin/blog");
   redirect(withAdminSavedParam(`/admin/blog/${rawId}`));
 }
@@ -170,6 +175,8 @@ export async function deleteBlogPost(formData: FormData) {
 
   revalidatePath("/blog");
   if (row?.slug) revalidatePath(`/blog/${row.slug}`);
+  revalidatePath("/");
+  revalidateSiteHome();
   revalidatePath("/admin/blog");
   redirect("/admin/blog");
 }
@@ -202,6 +209,8 @@ export async function updateBlogPostContent(
 
   revalidatePath("/blog");
   revalidatePath(`/blog/${slug}`);
+  revalidatePath("/");
+  revalidateSiteHome();
   revalidatePath("/admin/blog");
   revalidatePath(`/admin/blog/${id}`);
   return { ok: true as const };

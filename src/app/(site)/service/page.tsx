@@ -2,9 +2,7 @@ import type { Metadata } from "next";
 import AdminInlineSitePageEditor from "@/components/site/AdminInlineSitePageEditor";
 import { buildSitePageMetadata } from "@/lib/seo/site-page-metadata";
 import ContentContainer from "@/components/ContentContainer";
-import { getOptionalAdmin } from "@/lib/auth/admin";
-import { getSitePageContent } from "@/lib/site-pages";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedSitePageContent } from "@/lib/site-pages";
 import ContactInquiryForm from "@/app/(site)/kontakt/ContactInquiryForm";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -12,9 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ServicePage() {
-  const admin = await getOptionalAdmin();
-  const supabase = admin?.supabase ?? (await createClient());
-  const page = await getSitePageContent(supabase, "service");
+  const page = await getCachedSitePageContent("service");
 
   return (
     <ContentContainer>
@@ -28,7 +24,6 @@ export default async function ServicePage() {
           slug="service"
           title={page.title}
           content={page.content}
-          isAdmin={Boolean(admin)}
         />
         <section className="rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
           <ContactInquiryForm />

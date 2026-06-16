@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateSiteMarketing } from "@/lib/cache/revalidate-site";
 import { requireAdmin } from "@/lib/auth/admin";
 import {
   MARKETING_CONTENT_FALLBACKS,
@@ -60,6 +61,7 @@ export async function updateMarketingContent(
   }
 
   REVALIDATE_PATHS.forEach((path) => revalidatePath(path));
+  revalidateSiteMarketing();
   return { ok: true };
 }
 
@@ -122,5 +124,6 @@ export async function updateMarketingContentBatch(
   }
 
   REVALIDATE_PATHS.forEach((path) => revalidatePath(path));
+  revalidateSiteMarketing();
   return { ok: true };
 }

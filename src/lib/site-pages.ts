@@ -1,4 +1,10 @@
 import { sanitizeBlogHtml } from "@/lib/blog-content";
+import { unstable_cache } from "next/cache";
+import {
+  SITE_CACHE_REVALIDATE_SECONDS,
+  SITE_CACHE_TAGS,
+} from "@/lib/cache/tags";
+import { createAnonServerClient } from "@/lib/supabase/anon-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type SitePageSlug =
@@ -91,4 +97,15 @@ export async function getSitePageContent(
     title: data?.title ?? fallback.title,
     content: sanitizeBlogHtml(data?.content ?? fallback.content),
   };
+}
+
+export function getCachedSitePageContent(slug: SitePageSlug) {
+  return unstable_cache(
+    async () => getSitePageContent(createAnonServerClient(), slug),
+    [`site-page-${slug}`],
+    {
+      revalidate: SITE_CACHE_REVALIDATE_SECONDS,
+      tags: [`site-page-${slug}`, SITE_CACHE_TAGS.marketing],
+    },
+  )();
 }

@@ -6,6 +6,8 @@ import GoogleConsentMode from "@/components/seo/GoogleConsentMode";
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() ?? "";
 
+export const revalidate = 120;
+
 export default function SiteLayout({
   children,
 }: {

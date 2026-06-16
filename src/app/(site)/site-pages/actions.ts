@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateSitePage } from "@/lib/cache/revalidate-site";
 import { requireAdmin } from "@/lib/auth/admin";
 import { sanitizeBlogHtml } from "@/lib/blog-content";
 import type { SitePageSlug } from "@/lib/site-pages";
@@ -49,5 +50,6 @@ export async function updateSitePageContent(
   if (slug === "kontakt") revalidatePath("/kontakt");
   if (slug === "impressum") revalidatePath("/impressum");
   if (slug === "datenschutz") revalidatePath("/datenschutz");
+  revalidateSitePage(slug);
   return { ok: true };
 }

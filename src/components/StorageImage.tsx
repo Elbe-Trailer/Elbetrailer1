@@ -17,7 +17,7 @@ export default function StorageImage({ bucket, path, alt, ...rest }: Props) {
       {...rest}
       src={src}
       alt={alt}
-      unoptimized
+      loading={rest.priority ? undefined : rest.loading ?? "lazy"}
     />
   );
 }

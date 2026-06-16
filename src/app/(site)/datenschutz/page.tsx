@@ -2,18 +2,14 @@ import type { Metadata } from "next";
 import AdminInlineSitePageEditor from "@/components/site/AdminInlineSitePageEditor";
 import { buildSitePageMetadata } from "@/lib/seo/site-page-metadata";
 import ContentContainer from "@/components/ContentContainer";
-import { getOptionalAdmin } from "@/lib/auth/admin";
-import { getSitePageContent } from "@/lib/site-pages";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedSitePageContent } from "@/lib/site-pages";
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildSitePageMetadata("datenschutz");
 }
 
 export default async function DatenschutzPage() {
-  const admin = await getOptionalAdmin();
-  const supabase = admin?.supabase ?? (await createClient());
-  const page = await getSitePageContent(supabase, "datenschutz");
+  const page = await getCachedSitePageContent("datenschutz");
 
   return (
     <ContentContainer>
@@ -27,7 +23,6 @@ export default async function DatenschutzPage() {
           slug="datenschutz"
           title={page.title}
           content={page.content}
-          isAdmin={Boolean(admin)}
         />
       </article>
     </ContentContainer>

@@ -65,9 +65,9 @@ type HeaderCopy = Record<
   string
 >;
 
-type Props = { categories: NavCategory[]; copy: HeaderCopy; isAdmin: boolean };
+type Props = { categories: NavCategory[]; copy: HeaderCopy };
 
-export default function HeaderNav({ categories, copy, isAdmin }: Props) {
+export default function HeaderNav({ categories, copy }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuId = useId();
 
@@ -117,7 +117,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="header.menu.trailers"
                   value={copy["header.menu.trailers"]}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
                 <IconChevronDown className="h-4 w-4 opacity-90" />
@@ -135,7 +134,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                     <AdminInlineMarketingContentEditor
                       contentKey="header.menu.all_trailers"
                       value={copy["header.menu.all_trailers"]}
-                      isAdmin={isAdmin}
                       inlineOnly
                     />
                   </Link>
@@ -144,7 +142,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                       <AdminInlineMarketingContentEditor
                         contentKey="header.menu.no_categories"
                         value={copy["header.menu.no_categories"]}
-                        isAdmin={isAdmin}
                         inlineOnly
                       />
                     </p>
@@ -186,7 +183,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                       <AdminInlineMarketingContentEditor
                         contentKey="header.menu.rent"
                         value={copy["header.menu.rent"]}
-                        isAdmin={isAdmin}
                         inlineOnly
                       />
                     </Link>
@@ -202,7 +198,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
               <AdminInlineMarketingContentEditor
                 contentKey="header.nav.about"
                 value={copy["header.nav.about"]}
-                isAdmin={isAdmin}
                 inlineOnly
               />
             </Link>
@@ -213,7 +208,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
               <AdminInlineMarketingContentEditor
                 contentKey="header.nav.service"
                 value={copy["header.nav.service"]}
-                isAdmin={isAdmin}
                 inlineOnly
               />
             </Link>
@@ -224,7 +218,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
               <AdminInlineMarketingContentEditor
                 contentKey="header.nav.rent_trailers"
                 value={copy["header.nav.rent_trailers"]}
-                isAdmin={isAdmin}
                 inlineOnly
               />
             </Link>
@@ -235,7 +228,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
               <AdminInlineMarketingContentEditor
                 contentKey="header.nav.blog"
                 value={copy["header.nav.blog"]}
-                isAdmin={isAdmin}
                 inlineOnly
               />
             </Link>
@@ -246,7 +238,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
               <AdminInlineMarketingContentEditor
                 contentKey="header.nav.contact"
                 value={copy["header.nav.contact"]}
-                isAdmin={isAdmin}
                 inlineOnly
               />
             </Link>
@@ -298,7 +289,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="header.mobile.categories_title"
                   value={copy["header.mobile.categories_title"]}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </p>
@@ -310,7 +300,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="header.menu.all_trailers"
                   value={copy["header.menu.all_trailers"]}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </Link>
@@ -345,7 +334,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                   <AdminInlineMarketingContentEditor
                     contentKey="header.mobile.no_categories"
                     value={copy["header.mobile.no_categories"]}
-                    isAdmin={isAdmin}
                     inlineOnly
                   />
                 </p>
@@ -358,7 +346,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="header.menu.rent"
                   value={copy["header.menu.rent"]}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </Link>
@@ -373,7 +360,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="header.nav.about"
                   value={copy["header.nav.about"]}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </Link>
@@ -385,7 +371,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="header.nav.service"
                   value={copy["header.nav.service"]}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </Link>
@@ -397,7 +382,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="header.nav.rent_trailers"
                   value={copy["header.nav.rent_trailers"]}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </Link>
@@ -409,7 +393,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="header.nav.blog"
                   value={copy["header.nav.blog"]}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </Link>
@@ -421,7 +404,6 @@ export default function HeaderNav({ categories, copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="header.nav.contact"
                   value={copy["header.nav.contact"]}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </Link>

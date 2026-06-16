@@ -11,14 +11,13 @@ import {
   getCategoryIconPath,
   getCategoryIconScale,
 } from "@/lib/categoryIcons";
-import { getOptionalAdmin } from "@/lib/auth/admin";
-import {
-  MARKETING_CONTENT_KEYS,
-  getMarketingContentMap,
-} from "@/lib/marketing-content";
 import AdminInlineMarketingContentEditor from "@/components/site/AdminInlineMarketingContentEditor";
-import { createClient } from "@/lib/supabase/server";
-import type { Listing } from "@/types/database";
+import {
+  getCachedActiveCategories,
+  getCachedHomePageData,
+  getCachedMarketingContentMap,
+  type SiteCategory,
+} from "@/lib/site-data";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Anhänger kaufen & mieten",
@@ -27,9 +26,7 @@ export const metadata: Metadata = buildPageMetadata({
   path: "/",
 });
 
-type HomeCategory = { slug: string; name: string };
-
-function TrailerSketch({ category }: { category: HomeCategory }) {
+function TrailerSketch({ category }: { category: SiteCategory }) {
   const iconPath = getCategoryIconPath(category);
   const iconKey = getCategoryIconKey(category);
   const iconScale = getCategoryIconScale(category);
@@ -44,6 +41,7 @@ function TrailerSketch({ category }: { category: HomeCategory }) {
           alt=""
           width={320}
           height={120}
+          loading="lazy"
           className="h-auto max-h-full w-full max-w-[248px] object-contain object-center sm:max-w-[280px] lg:max-w-[300px]"
           sizes="(max-width: 640px) 48vw, (max-width: 1024px) 264px, 312px"
           style={{
@@ -58,95 +56,12 @@ function TrailerSketch({ category }: { category: HomeCategory }) {
   return <div className="h-full w-full rounded bg-zinc-100 dark:bg-zinc-800" aria-hidden />;
 }
 
-async function loadHome() {
-  let categories: HomeCategory[] = [];
-  let portfolio: Pick<
-    Listing,
-    | "id"
-    | "slug"
-    | "title"
-    | "price_cents"
-    | "daily_rate_cents"
-    | "listing_type"
-    | "gallery_paths"
-  >[] = [];
-  let featuredPosts: {
-    id: string;
-    slug: string;
-    title: string;
-    excerpt: string | null;
-    published_at: string | null;
-    blog_categories: { slug: string; name: string } | null;
-  }[] = [];
-
-  try {
-    const supabase = await createClient();
-    const { data: cats } = await supabase
-      .from("categories")
-      .select("slug, name")
-      .eq("is_active", true)
-      .order("sort_order");
-    categories = cats ?? [];
-
-    const { data: highlightRows } = await supabase
-      .from("listing_highlights")
-      .select("listing_id, position")
-      .order("position", { ascending: true });
-
-    const ids = highlightRows?.map((h) => h.listing_id) ?? [];
-    if (ids.length) {
-      const { data: listings } = await supabase
-        .from("listings")
-        .select(
-          "id, slug, title, price_cents, daily_rate_cents, listing_type, gallery_paths",
-        )
-        .in("id", ids);
-      const map = new Map(
-        (listings ?? []).map((l) => [l.id as string, l as Listing]),
-      );
-      portfolio = ids
-        .map((id) => map.get(id))
-        .filter(Boolean) as typeof portfolio;
-    }
-
-    const { data: posts } = await supabase
-      .from("blog_posts")
-      .select(
-        "id, slug, title, excerpt, published_at, blog_categories ( slug, name )",
-      )
-      .eq("published", true)
-      .order("published_at", { ascending: false, nullsFirst: false })
-      .limit(3);
-
-    featuredPosts = (posts ?? []).map((row) => {
-      const rel = row.blog_categories as
-        | { slug: string; name: string }
-        | { slug: string; name: string }[]
-        | null
-        | undefined;
-      const blog_categories = Array.isArray(rel) ? rel[0] ?? null : rel ?? null;
-      return {
-        id: row.id as string,
-        slug: row.slug as string,
-        title: row.title as string,
-        excerpt: (row.excerpt as string | null) ?? null,
-        published_at: (row.published_at as string | null) ?? null,
-        blog_categories,
-      };
-    });
-  } catch {
-    /* DB unavailable */
-  }
-
-  return { categories, portfolio, featuredPosts };
-}
-
 export default async function HomePage() {
-  const admin = await getOptionalAdmin();
-  const supabase = admin?.supabase ?? (await createClient());
-  const { categories, portfolio, featuredPosts } = await loadHome();
-  const copy = await getMarketingContentMap(supabase, MARKETING_CONTENT_KEYS);
-  const isAdmin = Boolean(admin);
+  const [categories, { portfolio, featuredPosts }, copy] = await Promise.all([
+    getCachedActiveCategories(),
+    getCachedHomePageData(),
+    getCachedMarketingContentMap(),
+  ]);
 
   return (
     <>
@@ -158,7 +73,6 @@ export default async function HomePage() {
           ctaBuy: copy["home.hero.cta_buy"],
           ctaRent: copy["home.hero.cta_rent"],
         }}
-        isAdmin={isAdmin}
       />
 
       <HomeTrustStrip
@@ -168,7 +82,6 @@ export default async function HomePage() {
           item3: copy["home.trust.item3"],
           item4: copy["home.trust.item4"],
         }}
-        isAdmin={isAdmin}
       />
 
       <FullBleed className="rounded-t-3xl bg-[var(--surface-card)] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
@@ -181,7 +94,6 @@ export default async function HomePage() {
                     <AdminInlineMarketingContentEditor
                       contentKey="home.categories.overline"
                       value={copy["home.categories.overline"]}
-                      isAdmin={isAdmin}
                     />
                   </p>
                   <h2
@@ -191,7 +103,6 @@ export default async function HomePage() {
                     <AdminInlineMarketingContentEditor
                       contentKey="home.categories.heading"
                       value={copy["home.categories.heading"]}
-                      isAdmin={isAdmin}
                     />
                   </h2>
                 </div>
@@ -202,7 +113,6 @@ export default async function HomePage() {
                   <AdminInlineMarketingContentEditor
                     contentKey="home.categories.rental_link"
                     value={copy["home.categories.rental_link"]}
-                    isAdmin={isAdmin}
                     inlineOnly
                   />
                 </Link>
@@ -222,7 +132,6 @@ export default async function HomePage() {
                         <AdminInlineMarketingContentEditor
                           contentKey="home.categories.card_cta"
                           value={copy["home.categories.card_cta"]}
-                          isAdmin={isAdmin}
                           inlineOnly
                         />
                       </span>
@@ -251,7 +160,6 @@ export default async function HomePage() {
             <AdminInlineMarketingContentEditor
               contentKey="home.highlights.heading"
               value={copy["home.highlights.heading"]}
-              isAdmin={isAdmin}
             />
           </div>
           {portfolio.length === 0 ? (
@@ -259,7 +167,6 @@ export default async function HomePage() {
               <AdminInlineMarketingContentEditor
                 contentKey="home.highlights.empty_state"
                 value={copy["home.highlights.empty_state"]}
-                isAdmin={isAdmin}
                 multiline
               />
             </div>

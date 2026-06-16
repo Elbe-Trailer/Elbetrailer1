@@ -13,7 +13,6 @@ type HeroCopy = {
 
 type Props = {
   copy: HeroCopy;
-  isAdmin: boolean;
 };
 
 function IconTrailer({ className }: { className?: string }) {
@@ -58,7 +57,7 @@ function IconCalendar({ className }: { className?: string }) {
   );
 }
 
-export default function HomeHero({ copy, isAdmin }: Props) {
+export default function HomeHero({ copy }: Props) {
   return (
     <FullBleed className="bg-[var(--surface-hero)]">
       <div className="mx-auto max-w-7xl px-4 py-8 md:py-12">
@@ -70,7 +69,7 @@ export default function HomeHero({ copy, isAdmin }: Props) {
               width={1024}
               height={445}
               priority
-              unoptimized
+              sizes="(max-width: 768px) 100vw, 576px"
               className="h-auto w-full max-w-lg md:max-w-xl"
             />
           </div>
@@ -80,14 +79,12 @@ export default function HomeHero({ copy, isAdmin }: Props) {
               <AdminInlineMarketingContentEditor
                 contentKey="home.hero.brand"
                 value={copy.brand}
-                isAdmin={isAdmin}
               />
             </p>
             <h1 className="mt-3 text-2xl font-bold tracking-tight text-zinc-900 uppercase sm:text-3xl lg:text-4xl">
               <AdminInlineMarketingContentEditor
                 contentKey="home.hero.title"
                 value={copy.title}
-                isAdmin={isAdmin}
                 multiline
               />
             </h1>
@@ -95,7 +92,6 @@ export default function HomeHero({ copy, isAdmin }: Props) {
               <AdminInlineMarketingContentEditor
                 contentKey="home.hero.subtitle"
                 value={copy.subtitle}
-                isAdmin={isAdmin}
                 multiline
               />
             </p>
@@ -109,7 +105,6 @@ export default function HomeHero({ copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="home.hero.cta_buy"
                   value={copy.ctaBuy}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </Link>
@@ -121,7 +116,6 @@ export default function HomeHero({ copy, isAdmin }: Props) {
                 <AdminInlineMarketingContentEditor
                   contentKey="home.hero.cta_rent"
                   value={copy.ctaRent}
-                  isAdmin={isAdmin}
                   inlineOnly
                 />
               </Link>

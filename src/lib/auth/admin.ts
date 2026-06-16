@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -20,7 +21,7 @@ export async function requireAdmin() {
   return { supabase, user };
 }
 
-export async function getOptionalAdmin() {
+export const getOptionalAdmin = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -33,4 +34,4 @@ export async function getOptionalAdmin() {
     .single();
   if (!profile?.is_admin) return null;
   return { supabase, user };
-}
+});
