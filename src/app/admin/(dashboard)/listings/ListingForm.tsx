@@ -2,7 +2,6 @@
 
 import {
   useActionState,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -20,6 +19,13 @@ import SuccessChoiceDialog from "@/components/admin/SuccessChoiceDialog";
 import { saveListing, type SaveListingState } from "./actions";
 
 type LaRow = { accessory_id: string; max_quantity: number };
+
+// Stable empty-array reference for the default prop. A `= []` default would
+// create a fresh array on every render, which breaks the referential-equality
+// check in the "adjust state during render" block below and causes an infinite
+// render loop when the form is used without a `currentGalleryPaths` prop
+// (i.e. on the "new listing" page).
+const EMPTY_GALLERY_PATHS: string[] = [];
 
 function accessoryDisplayName(a: AccessoryForListingConfig) {
   const bits: string[] = [];
@@ -66,12 +72,62 @@ type Props = {
   currentGalleryPaths?: string[];
 };
 
+type UploadItem = {
+  id: string;
+  name: string;
+  status: "uploading" | "done" | "error";
+  error?: string;
+};
+
+// Downscale + re-encode large photos in the browser before upload. Phone photos
+// are often 5–12 MB each; this keeps uploads fast and reliable without touching
+// quality noticeably. Falls back to the original file if anything goes wrong.
+async function compressImage(file: File): Promise<File> {
+  // Leave non-raster and animated types untouched.
+  if (!file.type.startsWith("image/") || file.type === "image/gif") {
+    return file;
+  }
+  const MAX_DIMENSION = 2000;
+  const QUALITY = 0.82;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const largestSide = Math.max(bitmap.width, bitmap.height);
+    const scale = Math.min(1, MAX_DIMENSION / largestSide);
+    const targetWidth = Math.round(bitmap.width * scale);
+    const targetHeight = Math.round(bitmap.height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+    ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", QUALITY),
+    );
+    // If re-encoding didn't actually shrink the file, keep the original.
+    if (!blob || blob.size >= file.size) return file;
+
+    const newName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+    return new File([blob], newName, { type: "image/jpeg" });
+  } catch {
+    // Decoding can fail for formats the browser can't render (e.g. HEIC).
+    // Upload the original and let the server validate it.
+    return file;
+  }
+}
+
 export default function ListingForm({
   listing,
   linked = [],
   categories,
   accessories,
-  currentGalleryPaths = [],
+  currentGalleryPaths = EMPTY_GALLERY_PATHS,
 }: Props) {
   const initialType = (listing?.listing_type as ListingType | undefined) ?? "kauf";
   const [offerKauf, setOfferKauf] = useState(
@@ -93,22 +149,80 @@ export default function ListingForm({
   const groups = useMemo(() => accessoryGroups(accessories), [accessories]);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
-  const [selectedImageNames, setSelectedImageNames] = useState<string[]>([]);
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [newImagePaths, setNewImagePaths] = useState<string[]>([]);
   const [title, setTitle] = useState(listing?.title ?? "");
   const [slug, setSlug] = useState(listing?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(Boolean(listing?.slug));
   const [galleryPaths, setGalleryPaths] = useState(currentGalleryPaths);
 
-  useEffect(() => {
+  // Reset the kept-images list when the server sends a fresh set of paths
+  // (e.g. after a save re-renders the page). Adjusting during render is the
+  // recommended alternative to a syncing effect.
+  const [prevGalleryPaths, setPrevGalleryPaths] = useState(currentGalleryPaths);
+  if (currentGalleryPaths !== prevGalleryPaths) {
+    setPrevGalleryPaths(currentGalleryPaths);
     setGalleryPaths(currentGalleryPaths);
-  }, [currentGalleryPaths]);
+  }
+
+  const uploading = uploads.some((u) => u.status === "uploading");
+  const failedUploads = uploads.filter((u) => u.status === "error");
+
+  // Upload each image on its own request to a Route Handler as soon as it's
+  // chosen — this keeps the big binary payload out of the saveListing Server
+  // Action (which is capped by serverActions.bodySizeLimit) so saving no longer
+  // fails when photos are attached. Only the resulting storage paths are then
+  // submitted with the form.
+  async function uploadFiles(files: File[]) {
+    for (const file of files) {
+      if (!file || file.size === 0) continue;
+      const itemId = `${file.name}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 7)}`;
+      setUploads((prev) => [
+        ...prev,
+        { id: itemId, name: file.name, status: "uploading" },
+      ]);
+      try {
+        const prepared = await compressImage(file);
+        const fd = new FormData();
+        fd.append("image", prepared);
+        if (listing?.id) fd.append("listingId", listing.id);
+
+        const res = await fetch("/api/admin/listings/upload-image", {
+          method: "POST",
+          body: fd,
+        });
+        const data = (await res.json().catch(() => null)) as {
+          path?: string;
+          error?: string;
+        } | null;
+        if (!res.ok || !data?.path) {
+          throw new Error(
+            data?.error || `Upload fehlgeschlagen (${res.status}).`,
+          );
+        }
+        setNewImagePaths((prev) => [...prev, data.path as string]);
+        setUploads((prev) =>
+          prev.map((u) => (u.id === itemId ? { ...u, status: "done" } : u)),
+        );
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Upload fehlgeschlagen.";
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.id === itemId ? { ...u, status: "error", error: message } : u,
+          ),
+        );
+      }
+    }
+  }
 
   function handleImageSelection(files: FileList | null) {
-    if (!files) {
-      setSelectedImageNames([]);
-      return;
-    }
-    setSelectedImageNames(Array.from(files).map((file) => file.name));
+    if (!files?.length) return;
+    void uploadFiles(Array.from(files));
+    // Reset the input so re-selecting the same file triggers a fresh upload.
+    if (imageInputRef.current) imageInputRef.current.value = "";
   }
 
   function handleDrop(event: DragEvent<HTMLLabelElement>) {
@@ -116,12 +230,7 @@ export default function ListingForm({
     setIsDragActive(false);
     const files = event.dataTransfer.files;
     if (!files?.length) return;
-    if (imageInputRef.current) {
-      const dt = new DataTransfer();
-      for (const file of Array.from(files)) dt.items.add(file);
-      imageInputRef.current.files = dt.files;
-      handleImageSelection(dt.files);
-    }
+    void uploadFiles(Array.from(files));
   }
 
   return (
@@ -145,6 +254,9 @@ export default function ListingForm({
         <input type="hidden" name="id" value={listing.id} />
       ) : null}
       {galleryPaths.map((path) => (
+        <input key={path} type="hidden" name="gallery_path" value={path} />
+      ))}
+      {newImagePaths.map((path) => (
         <input key={path} type="hidden" name="gallery_path" value={path} />
       ))}
 
@@ -186,6 +298,41 @@ export default function ListingForm({
             ))}
           </ul>
         ) : null}
+
+        {newImagePaths.length ? (
+          <ul className="mb-3 flex flex-wrap gap-2">
+            {newImagePaths.map((path) => (
+              <li
+                key={path}
+                className="relative h-20 w-28 overflow-hidden rounded-lg bg-zinc-100 ring-2 ring-amber-400 dark:bg-zinc-800"
+              >
+                <StorageImage
+                  bucket="listings"
+                  path={path}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="112px"
+                />
+                <span className="absolute left-1 top-1 z-10 rounded bg-amber-500 px-1 text-[10px] font-semibold leading-tight text-white">
+                  Neu
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setNewImagePaths((prev) => prev.filter((p) => p !== path))
+                  }
+                  className="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/75 text-base font-medium leading-none text-white shadow-sm transition hover:bg-red-600"
+                  aria-label="Bild entfernen"
+                  title="Bild entfernen"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         <label
           htmlFor="images"
           onDragOver={(e) => {
@@ -203,7 +350,6 @@ export default function ListingForm({
           <input
             ref={imageInputRef}
             id="images"
-            name="images"
             type="file"
             accept="image/*"
             multiple
@@ -214,26 +360,41 @@ export default function ListingForm({
             Bilder hierher ziehen oder im Browser auswählen
           </p>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            JPG, PNG, WEBP. Mehrfachauswahl wird unter den bestehenden Bildern ergänzt.
+            JPG, PNG, WEBP. Große Fotos werden automatisch verkleinert und einzeln
+            hochgeladen.
           </p>
-          {selectedImageNames.length ? (
-            <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-300">
-              {selectedImageNames.length} Bild(er) ausgewählt:{" "}
-              {selectedImageNames.slice(0, 3).join(", ")}
-              {selectedImageNames.length > 3 ? " …" : ""}
-            </p>
-          ) : null}
         </label>
-        {galleryPaths.length ? (
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-            {galleryPaths.length} Bild(er) werden beim Speichern behalten. Entfernte
-            Bilder werden endgültig gelöscht.
-          </p>
-        ) : (
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-            Noch keine Bilder gespeichert.
-          </p>
-        )}
+
+        {uploads.length ? (
+          <ul className="mt-2 space-y-1 text-xs">
+            {uploads.map((u) => (
+              <li
+                key={u.id}
+                className={
+                  u.status === "error"
+                    ? "text-red-600 dark:text-red-400"
+                    : u.status === "done"
+                      ? "text-green-700 dark:text-green-400"
+                      : "text-zinc-600 dark:text-zinc-300"
+                }
+              >
+                {u.status === "uploading"
+                  ? `⏳ ${u.name} wird hochgeladen…`
+                  : u.status === "done"
+                    ? `✓ ${u.name} hochgeladen`
+                    : `✕ ${u.name}: ${u.error ?? "Upload fehlgeschlagen."}`}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+          {galleryPaths.length + newImagePaths.length > 0
+            ? `${
+                galleryPaths.length + newImagePaths.length
+              } Bild(er) werden beim Speichern übernommen. Entfernte Bilder werden endgültig gelöscht.`
+            : "Noch keine Bilder gespeichert."}
+        </p>
       </div>
 
       <div>
@@ -572,7 +733,7 @@ export default function ListingForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium" htmlFor="tip_function">
-            Kipfunktion
+            Kippfunktion
           </label>
           <input
             id="tip_function"
@@ -672,13 +833,25 @@ export default function ListingForm({
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-white dark:text-zinc-900"
-      >
-        {pending ? "Speichern…" : "Speichern"}
-      </button>
+      <div className="space-y-2">
+        {failedUploads.length ? (
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {failedUploads.length} Bild-Upload(s) fehlgeschlagen. Bitte erneut
+            hochladen, bevor Sie speichern.
+          </p>
+        ) : null}
+        <button
+          type="submit"
+          disabled={pending || uploading}
+          className="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-white dark:text-zinc-900"
+        >
+          {uploading
+            ? "Bilder werden hochgeladen…"
+            : pending
+              ? "Speichern…"
+              : "Speichern"}
+        </button>
+      </div>
     </form>
     </>
   );

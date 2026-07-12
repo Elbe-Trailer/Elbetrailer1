@@ -59,67 +59,68 @@ function IconCalendar({ className }: { className?: string }) {
 
 export default function HomeHero({ copy }: Props) {
   return (
-    <FullBleed className="bg-[var(--surface-hero)]">
-      <div className="mx-auto max-w-7xl px-4 py-8 md:py-12">
-        <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12 lg:gap-16">
-          <div className="order-1 flex justify-center bg-transparent md:order-2">
-            <Image
-              src="/hero/porsche-anhaenger.png"
-              alt="Porsche 911 auf einem Anhänger — elbe-trailer Verkauf und Vermietung"
-              width={1024}
-              height={445}
-              priority
-              sizes="(max-width: 768px) 100vw, 576px"
-              className="h-auto w-full max-w-lg md:max-w-xl"
+    <FullBleed className="relative isolate overflow-hidden bg-[var(--surface-hero)]">
+      {/* Full-width background photo */}
+      <Image
+        src="/hero/hero-website.png"
+        alt="Elbe-Trailer Verkaufs- und Vermietungsplatz mit Anhängern bei Hamburg"
+        fill
+        preload
+        quality={90}
+        sizes="100vw"
+        className="-z-10 object-cover object-center"
+      />
+      {/* Left-to-right dark scrim so the text stays readable over the photo */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/80 via-black/55 to-black/10 md:via-black/40 md:to-transparent" />
+
+      <div className="mx-auto flex min-h-[460px] max-w-7xl items-center px-4 py-16 md:min-h-[580px] md:py-24">
+        <div className="max-w-3xl">
+          <p className="text-sm font-semibold tracking-wide text-emerald-300 uppercase">
+            <AdminInlineMarketingContentEditor
+              contentKey="home.hero.brand"
+              value={copy.brand}
             />
-          </div>
+          </p>
 
-          <div className="order-2 md:order-1">
-            <p className="text-sm font-semibold tracking-wide text-[var(--header-green)] uppercase">
-              <AdminInlineMarketingContentEditor
-                contentKey="home.hero.brand"
-                value={copy.brand}
-              />
-            </p>
-            <h1 className="mt-3 text-2xl font-bold tracking-tight text-zinc-900 uppercase sm:text-3xl lg:text-4xl">
-              <AdminInlineMarketingContentEditor
-                contentKey="home.hero.title"
-                value={copy.title}
-                multiline
-              />
-            </h1>
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg">
-              <AdminInlineMarketingContentEditor
-                contentKey="home.hero.subtitle"
-                value={copy.subtitle}
-                multiline
-              />
-            </p>
+          <h1 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-pretty whitespace-pre-line text-white uppercase drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)] sm:text-4xl">
+            <AdminInlineMarketingContentEditor
+              contentKey="home.hero.title"
+              value={copy.title}
+              multiline
+            />
+          </h1>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/#kategorien"
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-[var(--header-green)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 sm:flex-none"
-              >
-                <IconTrailer />
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.hero.cta_buy"
-                  value={copy.ctaBuy}
-                  inlineOnly
-                />
-              </Link>
-              <Link
-                href="/mieten"
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border-2 border-[var(--header-green)] bg-white px-5 py-3 text-sm font-semibold text-[var(--header-green)] transition hover:bg-emerald-50 sm:flex-none"
-              >
-                <IconCalendar />
-                <AdminInlineMarketingContentEditor
-                  contentKey="home.hero.cta_rent"
-                  value={copy.ctaRent}
-                  inlineOnly
-                />
-              </Link>
-            </div>
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-zinc-100 drop-shadow-[0_1px_4px_rgba(0,0,0,0.4)] sm:text-lg">
+            <AdminInlineMarketingContentEditor
+              contentKey="home.hero.subtitle"
+              value={copy.subtitle}
+              multiline
+            />
+          </p>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/#kategorien"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-[var(--header-green)] px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110 sm:flex-none"
+            >
+              <IconTrailer />
+              <AdminInlineMarketingContentEditor
+                contentKey="home.hero.cta_buy"
+                value={copy.ctaBuy}
+                inlineOnly
+              />
+            </Link>
+            <Link
+              href="/mieten"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border-2 border-white bg-white px-5 py-3 text-sm font-semibold text-[var(--header-green)] shadow-lg transition hover:bg-emerald-50 sm:flex-none"
+            >
+              <IconCalendar />
+              <AdminInlineMarketingContentEditor
+                contentKey="home.hero.cta_rent"
+                value={copy.ctaRent}
+                inlineOnly
+              />
+            </Link>
           </div>
         </div>
       </div>

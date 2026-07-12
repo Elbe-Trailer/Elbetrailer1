@@ -393,7 +393,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
               </dd>
             </div>
             <div>
-              <dt className="text-zinc-500">Kipfunktion</dt>
+              <dt className="text-zinc-500">Kippfunktion</dt>
               <dd>{listing.tip_function ?? "—"}</dd>
             </div>
             <div>

@@ -44,6 +44,55 @@ type RangeSliderFieldProps = {
   valueFormatter?: (value: number) => string;
 };
 
+function IconChevronDown({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+function countActiveFilters(filters: ListingFilters): number {
+  let count = 0;
+  const multiSelects = [
+    filters.category,
+    filters.brand,
+    filters.axleValues,
+    filters.tireValues,
+    filters.loadingArea,
+    filters.tipFunction,
+    filters.lighting,
+    filters.loadingRamps,
+  ];
+  for (const values of multiSelects) if (values.length) count += 1;
+  if (filters.braked !== null) count += 1;
+  const ranges: Array<[number | null, number | null]> = [
+    [filters.priceMin, filters.priceMax],
+    [filters.grossWeightMin, filters.grossWeightMax],
+    [filters.payloadMin, filters.payloadMax],
+    [filters.emptyWeightMin, filters.emptyWeightMax],
+    [filters.axleCountMin, filters.axleCountMax],
+    [filters.exteriorLengthMin, filters.exteriorLengthMax],
+    [filters.exteriorWidthMin, filters.exteriorWidthMax],
+    [filters.loadingLengthMin, filters.loadingLengthMax],
+    [filters.loadingWidthMin, filters.loadingWidthMax],
+    [filters.tireSizeMin, filters.tireSizeMax],
+  ];
+  for (const [min, max] of ranges) if (min !== null || max !== null) count += 1;
+  return count;
+}
+
 function setParam(params: URLSearchParams, key: string, value: string): void {
   const normalized = value.trim();
   if (normalized) params.set(key, normalized);
@@ -311,6 +360,7 @@ export default function ListingFilters({
   const pathname = usePathname();
   const currentSearchParams = useSearchParams();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [openPanel, setOpenPanel] = useState<
@@ -345,6 +395,14 @@ export default function ListingFilters({
     setOpenDropdown((prev) => (prev === key ? null : key));
     setOpenPanel(null);
   };
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => !prev);
+    setOpenDropdown(null);
+    setOpenPanel(null);
+  };
+
+  const activeFilterCount = countActiveFilters(filters);
 
 
   const applyFromForm = (form: HTMLFormElement) => {
@@ -454,7 +512,35 @@ export default function ListingFilters({
       className="space-y-3"
     >
       <div className="overflow-visible rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex flex-wrap gap-2 overflow-visible">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-expanded={!collapsed}
+            className="inline-flex items-center gap-2 rounded-md px-1 py-1 text-sm font-medium text-zinc-800 dark:text-zinc-100"
+          >
+            <IconChevronDown className={`transition-transform ${collapsed ? "-rotate-90" : ""}`} />
+            <span>Filter</span>
+            {activeFilterCount > 0 ? (
+              <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold text-white">
+                {activeFilterCount}
+              </span>
+            ) : null}
+          </button>
+          {collapsed && activeFilterCount > 0 ? (
+            <button
+              type="button"
+              onClick={onReset}
+              className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              Zuruecksetzen
+            </button>
+          ) : null}
+        </div>
+
+        {collapsed ? null : (
+        <>
+        <div className="mt-3 flex flex-wrap gap-2 overflow-visible">
           {showCategoryFilter ? (
             <FilterChipMultiSelect
               chipKey="category"
@@ -581,9 +667,11 @@ export default function ListingFilters({
             Zuruecksetzen
           </button>
         </div>
+        </>
+        )}
       </div>
 
-      {showAdvanced ? (
+      {!collapsed && showAdvanced ? (
         <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="grid gap-3 lg:grid-cols-3">
             <RangeSliderField label="Gesamtgewicht kg" minName={FILTER_PARAM_KEYS.grossWeightMin} maxName={FILTER_PARAM_KEYS.grossWeightMax} minBound={200} maxBound={sliderBounds.grossWeightMax} step={50} initialMin={filters.grossWeightMin} initialMax={filters.grossWeightMax} />

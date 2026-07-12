@@ -4,7 +4,7 @@ import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
 import { listingPublicPath } from "@/lib/listing-url";
 import { ensureUniqueSlug, normalizeSlug } from "@/lib/slug";
-import { removeObjects, uploadObject } from "@/lib/storage-provider";
+import { removeObjects } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
 import { revalidateSiteHome } from "@/lib/cache/revalidate-site";
 import { redirect } from "next/navigation";
@@ -140,7 +140,6 @@ export async function saveListing(
   const loading_area = String(formData.get("loading_area") ?? "").trim() || null;
 
   const accessoryIds = formData.getAll("accessory").map((v) => String(v).trim()).filter(Boolean);
-  const files = formData.getAll("images") as File[];
 
   const row = {
     slug,
@@ -195,44 +194,22 @@ export async function saveListing(
     }
   }
 
-  const newPaths: string[] = [];
-  const uploadErrors: string[] = [];
-  for (const file of files) {
-    if (!file || typeof file === "string" || file.size === 0) continue;
-    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `${listingId}/${Date.now()}-${safe}`;
-    const up = await uploadObject({
-      bucket: "listings",
-      path,
-      file,
-    });
-    if (up.ok) {
-      newPaths.push(path);
-    } else {
-      uploadErrors.push(up.error);
-    }
-  }
-  if (uploadErrors.length > 0) {
-    return {
-      ok: false,
-      error:
-        uploadErrors[0] === "Cloudflare R2 ist nicht konfiguriert."
-          ? "Bild-Upload fehlgeschlagen: Cloudflare R2 ist auf dem Server nicht konfiguriert."
-          : `Bild-Upload fehlgeschlagen: ${uploadErrors[0]}`,
-    };
-  }
-
-  const keptPaths = formData
+  // Images are uploaded from the client (to /api/admin/listings/upload-image)
+  // and arrive here only as storage paths via "gallery_path" — both the
+  // previously-saved images that were kept and any freshly uploaded ones. This
+  // keeps large binaries out of the Server Action payload, which is capped by
+  // serverActions.bodySizeLimit and was the cause of failed saves with photos.
+  const finalPaths = formData
     .getAll("gallery_path")
     .map((v) => String(v).trim())
     .filter(Boolean);
+
   const { data: current } = await supabase
     .from("listings")
     .select("gallery_paths")
     .eq("id", listingId)
     .single();
   const existing = (current?.gallery_paths as string[]) ?? [];
-  const finalPaths = [...keptPaths, ...newPaths];
   const toRemove = existing.filter((p) => !finalPaths.includes(p));
 
   if (toRemove.length) {
@@ -242,7 +219,11 @@ export async function saveListing(
     });
   }
 
-  if (toRemove.length || newPaths.length || finalPaths.length !== existing.length) {
+  const galleryChanged =
+    toRemove.length > 0 ||
+    finalPaths.length !== existing.length ||
+    finalPaths.some((p, i) => p !== existing[i]);
+  if (galleryChanged) {
     await supabase
       .from("listings")
       .update({

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { getCategoryIconPath, getCategoryIconScale } from "@/lib/categoryIcons";
 import AdminInlineMarketingContentEditor from "@/components/site/AdminInlineMarketingContentEditor";
 
@@ -69,6 +69,8 @@ type Props = { categories: NavCategory[]; copy: HeaderCopy };
 
 export default function HeaderNav({ categories, copy }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [barHeight, setBarHeight] = useState(0);
+  const barRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
   useEffect(() => {
@@ -82,13 +84,30 @@ export default function HeaderNav({ categories, copy }: Props) {
     return () => window.removeEventListener("resize", onResize);
   }, [mobileOpen]);
 
+  // Höhe des Menübalkens messen, damit das aufgeklappte Mobil-Menü exakt den
+  // verbleibenden Viewport ausfüllt und in sich selbst scrollt – statt die
+  // gesamte Seite zu verlängern (dann waren die letzten Punkte erst nach dem
+  // Scrollen bis ganz nach unten sichtbar).
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const measure = () => setBarHeight(el.getBoundingClientRect().height);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 shadow-md">
       {/* Haupt-Menübalken: grün, Logo + Navigation */}
       <div
         className="bg-[var(--header-green)] text-white"
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:py-3.5">
+        <div
+          ref={barRef}
+          className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:py-3.5"
+        >
           <Link
             href="/"
             className="shrink-0"
@@ -277,13 +296,16 @@ export default function HeaderNav({ categories, copy }: Props) {
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Mobile ausklappbar */}
-        {mobileOpen ? (
-          <div
-            id={menuId}
-            className="border-t border-white/25 bg-white text-zinc-900 lg:hidden"
-          >
+      {/* Mobile ausklappbar — Overlay-Panel mit eigenem Scroll, damit alle
+          Punkte erreichbar sind, ohne die ganze Seite scrollen zu müssen */}
+      {mobileOpen ? (
+        <div
+          id={menuId}
+          className="absolute inset-x-0 top-full overflow-y-auto overscroll-contain border-t border-black/5 bg-white text-zinc-900 shadow-xl lg:hidden"
+          style={{ maxHeight: `calc(100dvh - ${barHeight || 64}px)` }}
+        >
             <nav className="mx-auto max-w-7xl space-y-1 px-4 py-4" aria-label="Mobile Hauptnavigation">
               <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
                 <AdminInlineMarketingContentEditor
@@ -408,9 +430,8 @@ export default function HeaderNav({ categories, copy }: Props) {
                 />
               </Link>
             </nav>
-          </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </header>
   );
 }
