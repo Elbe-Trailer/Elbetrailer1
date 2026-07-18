@@ -4,7 +4,11 @@ import ContentContainer from "@/components/ContentContainer";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import ListingFilters from "@/components/ListingFilters";
 import ListingCard from "@/components/ListingCard";
-import { parseListingFilters, type ListingFilterSearchParams } from "@/lib/listingFilters";
+import {
+  listingSortOrder,
+  parseListingFilters,
+  type ListingFilterSearchParams,
+} from "@/lib/listingFilters";
 import { createClient } from "@/lib/supabase/server";
 import type { Listing } from "@/types/database";
 
@@ -168,7 +172,11 @@ export default async function AnhaengerPage({ searchParams }: Props) {
     if (filters.axleCountMax !== null) query = query.lte("axle_count", filters.axleCountMax);
   }
 
-  const { data: listings } = await query.order("created_at", { ascending: false });
+  const sortOrder = listingSortOrder(filters.sort);
+  const { data: listings } = await query.order(sortOrder.column, {
+    ascending: sortOrder.ascending,
+    nullsFirst: sortOrder.nullsFirst,
+  });
 
   const list: ListingWithCategory[] = (listings ?? []).map((row) => {
     const c = row.categories as

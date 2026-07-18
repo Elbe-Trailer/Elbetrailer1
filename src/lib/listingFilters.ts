@@ -2,7 +2,53 @@ export type SearchParamValue = string | string[] | undefined;
 
 export type ListingFilterSearchParams = Record<string, SearchParamValue>;
 
+export type ListingSort =
+  | "newest"
+  | "price_asc"
+  | "price_desc"
+  | "title_asc"
+  | "title_desc";
+
+export const DEFAULT_LISTING_SORT: ListingSort = "newest";
+
+export const LISTING_SORT_OPTIONS: Array<{ value: ListingSort; label: string }> = [
+  { value: "newest", label: "Neueste zuerst" },
+  { value: "price_asc", label: "Preis aufsteigend" },
+  { value: "price_desc", label: "Preis absteigend" },
+  { value: "title_asc", label: "Name A–Z" },
+  { value: "title_desc", label: "Name Z–A" },
+];
+
+const LISTING_SORT_VALUES = new Set<ListingSort>(
+  LISTING_SORT_OPTIONS.map((option) => option.value),
+);
+
+/**
+ * Übersetzt eine Sortier-Auswahl in die Argumente für einen Supabase
+ * `.order(column, options)`-Aufruf. `priceColumn` erlaubt es der Miet-Übersicht,
+ * nach Tagespreis statt Kaufpreis zu sortieren.
+ */
+export function listingSortOrder(
+  sort: ListingSort,
+  priceColumn: "price_cents" | "daily_rate_cents" = "price_cents",
+): { column: string; ascending: boolean; nullsFirst: boolean } {
+  switch (sort) {
+    case "price_asc":
+      return { column: priceColumn, ascending: true, nullsFirst: false };
+    case "price_desc":
+      return { column: priceColumn, ascending: false, nullsFirst: false };
+    case "title_asc":
+      return { column: "title", ascending: true, nullsFirst: false };
+    case "title_desc":
+      return { column: "title", ascending: false, nullsFirst: false };
+    case "newest":
+    default:
+      return { column: "created_at", ascending: false, nullsFirst: false };
+  }
+}
+
 export type ListingFilters = {
+  sort: ListingSort;
   category: string[];
   brand: string[];
   axleValues: number[];
@@ -35,6 +81,7 @@ export type ListingFilters = {
 };
 
 export const FILTER_PARAM_KEYS = {
+  sort: "sort",
   category: "cat",
   brand: "brand",
   axleValues: "axle",
@@ -115,6 +162,14 @@ function parseBoolean(value: SearchParamValue): boolean | null {
   return null;
 }
 
+function parseSort(value: SearchParamValue): ListingSort {
+  const raw = firstParamValue(value);
+  if (raw && LISTING_SORT_VALUES.has(raw as ListingSort)) {
+    return raw as ListingSort;
+  }
+  return DEFAULT_LISTING_SORT;
+}
+
 export function parseListingFilters(
   searchParams: ListingFilterSearchParams,
 ): ListingFilters {
@@ -170,6 +225,7 @@ export function parseListingFilters(
   );
 
   return {
+    sort: parseSort(searchParams[FILTER_PARAM_KEYS.sort]),
     category: allParamValues(searchParams[FILTER_PARAM_KEYS.category]),
     brand: allParamValues(searchParams[FILTER_PARAM_KEYS.brand]),
     axleValues: parseNumberList(searchParams[FILTER_PARAM_KEYS.axleValues]),

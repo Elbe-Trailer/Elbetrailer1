@@ -2,8 +2,18 @@ import type { Metadata } from "next";
 import ContentContainer from "@/components/ContentContainer";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import ListingCard from "@/components/ListingCard";
+import ListingSortSelect from "@/components/ListingSortSelect";
+import {
+  listingSortOrder,
+  parseListingFilters,
+  type ListingFilterSearchParams,
+} from "@/lib/listingFilters";
 import { createClient } from "@/lib/supabase/server";
 import type { Listing } from "@/types/database";
+
+type Props = {
+  searchParams: Promise<ListingFilterSearchParams>;
+};
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Anhänger mieten",
@@ -12,8 +22,10 @@ export const metadata: Metadata = buildPageMetadata({
   path: "/mieten",
 });
 
-export default async function MietenPage() {
+export default async function MietenPage({ searchParams }: Props) {
+  const filters = parseListingFilters(await searchParams);
   const supabase = await createClient();
+  const sortOrder = listingSortOrder(filters.sort, "daily_rate_cents");
   const { data: listings } = await supabase
     .from("listings")
     .select(
@@ -21,7 +33,10 @@ export default async function MietenPage() {
     )
     .eq("published", true)
     .in("listing_type", ["miete", "kauf_und_miete"])
-    .order("created_at", { ascending: false });
+    .order(sortOrder.column, {
+      ascending: sortOrder.ascending,
+      nullsFirst: sortOrder.nullsFirst,
+    });
 
   const list = (listings ?? []) as Pick<
     Listing,
@@ -53,6 +68,10 @@ export default async function MietenPage() {
           Aktuell keine Miet-Angebote.
         </p>
       ) : (
+        <>
+        <div className="flex justify-end">
+          <ListingSortSelect value={filters.sort} />
+        </div>
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((listing) => (
             <li key={listing.id}>
@@ -64,6 +83,7 @@ export default async function MietenPage() {
             </li>
           ))}
         </ul>
+        </>
       )}
     </div>
     </ContentContainer>

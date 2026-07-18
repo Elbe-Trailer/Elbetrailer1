@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type MouseEvent, type RefObject } from "react";
 import { FILTER_PARAM_KEYS, type ListingFilters } from "@/lib/listingFilters";
+import ListingSortSelect from "@/components/ListingSortSelect";
 
 type FilterCategory = { slug: string; name: string };
 
@@ -454,6 +455,11 @@ export default function ListingFilters({
       else setParam(params, key, rawValue);
     }
 
+    // Sortierung wird unabhängig von den Filtern über ListingSortSelect
+    // gesetzt — beim Neuaufbau der Filter-Parameter hier erhalten bleiben.
+    const currentSort = currentSearchParams.get(FILTER_PARAM_KEYS.sort);
+    if (currentSort) params.set(FILTER_PARAM_KEYS.sort, currentSort);
+
     const queryString = params.toString();
     const nextUrl = queryString ? `${basePath}?${queryString}` : basePath;
     const currentQuery = currentSearchParams.toString();
@@ -527,15 +533,18 @@ export default function ListingFilters({
               </span>
             ) : null}
           </button>
-          {collapsed && activeFilterCount > 0 ? (
-            <button
-              type="button"
-              onClick={onReset}
-              className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              Zuruecksetzen
-            </button>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {collapsed && activeFilterCount > 0 ? (
+              <button
+                type="button"
+                onClick={onReset}
+                className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                Zuruecksetzen
+              </button>
+            ) : null}
+            <ListingSortSelect value={filters.sort} compact />
+          </div>
         </div>
 
         {collapsed ? null : (
