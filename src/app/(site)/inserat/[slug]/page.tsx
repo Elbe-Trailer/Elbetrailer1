@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { after } from "next/server";
+import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import ContentContainer from "@/components/ContentContainer";
 import JsonLd from "@/components/seo/JsonLd";
@@ -11,7 +12,11 @@ import { getPublishedListingByParam } from "@/lib/listings/public";
 import { listingPublicPath } from "@/lib/listing-url";
 import { resolveCustomerListingMode } from "@/lib/listingCustomerMode";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { buildListingProductSchema } from "@/lib/seo/listing-schema";
+import {
+  buildBreadcrumbSchema,
+  buildListingProductSchema,
+} from "@/lib/seo/listing-schema";
+import { absoluteUrl } from "@/lib/site-url";
 import { isUuid } from "@/lib/slug";
 import { publicStorageUrl } from "@/lib/storage";
 import { createClient } from "@/lib/supabase/server";
@@ -85,8 +90,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const admin = await getOptionalAdmin();
   const listingId = listing.id;
   const isAdminPreview = !!admin;
+  // User-Agent hier auslesen — `headers()` ist innerhalb von `after()` nicht
+  // erlaubt (Next.js 16), daher vorab holen und durchreichen.
+  const userAgent = (await headers()).get("user-agent") ?? "";
   after(async () => {
-    await recordListingView(listingId, { isAdminPreview });
+    await recordListingView(listingId, { isAdminPreview, userAgent });
   });
 
   const id = listing.id;
@@ -273,19 +281,38 @@ export default async function ListingPage({ params, searchParams }: Props) {
   return (
     <ContentContainer>
     <JsonLd
-      data={buildListingProductSchema(
-        {
-          slug: listing.slug,
-          title: listing.title,
-          brand: listing.brand,
-          description: listing.description,
-          price_cents: listing.price_cents,
-          daily_rate_cents: listing.daily_rate_cents,
-          listing_type: listing.listing_type as "kauf" | "miete" | "kauf_und_miete",
-          gallery_paths: gallery,
-        },
-        imageUrls,
-      )}
+      data={[
+        buildListingProductSchema(
+          {
+            slug: listing.slug,
+            title: listing.title,
+            brand: listing.brand,
+            description: listing.description,
+            price_cents: listing.price_cents,
+            daily_rate_cents: listing.daily_rate_cents,
+            listing_type: listing.listing_type as "kauf" | "miete" | "kauf_und_miete",
+            gallery_paths: gallery,
+            article_number: listing.article_number,
+            condition: listing.condition,
+          },
+          imageUrls,
+        ),
+        buildBreadcrumbSchema([
+          { name: "Start", url: absoluteUrl("/") },
+          ...(category
+            ? [
+                {
+                  name: category.name,
+                  url: absoluteUrl(`/kategorie/${category.slug}`),
+                },
+              ]
+            : []),
+          {
+            name: listing.title,
+            url: absoluteUrl(listingPublicPath(listing.slug)),
+          },
+        ]),
+      ]}
     />
     <div className="space-y-10">
       <nav className="text-sm text-zinc-500">

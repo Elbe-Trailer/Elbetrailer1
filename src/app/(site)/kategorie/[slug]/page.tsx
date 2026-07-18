@@ -2,10 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ContentContainer from "@/components/ContentContainer";
+import JsonLd from "@/components/seo/JsonLd";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { buildBreadcrumbSchema } from "@/lib/seo/listing-schema";
+import { absoluteUrl } from "@/lib/site-url";
 import ListingFilters from "@/components/ListingFilters";
 import ListingCard from "@/components/ListingCard";
-import { parseListingFilters, type ListingFilterSearchParams } from "@/lib/listingFilters";
+import {
+  listingSortOrder,
+  parseListingFilters,
+  type ListingFilterSearchParams,
+} from "@/lib/listingFilters";
 import { createClient } from "@/lib/supabase/server";
 import type { Listing } from "@/types/database";
 
@@ -168,7 +175,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     if (filters.axleCountMax !== null) query = query.lte("axle_count", filters.axleCountMax);
   }
 
-  const { data: listings } = await query.order("created_at", { ascending: false });
+  const sortOrder = listingSortOrder(filters.sort);
+  const { data: listings } = await query.order(sortOrder.column, {
+    ascending: sortOrder.ascending,
+    nullsFirst: sortOrder.nullsFirst,
+  });
 
   const list = (listings ?? []) as Pick<
     Listing,
@@ -183,6 +194,12 @@ export default async function CategoryPage({ params, searchParams }: Props) {
 
   return (
     <ContentContainer>
+    <JsonLd
+      data={buildBreadcrumbSchema([
+        { name: "Start", url: absoluteUrl("/") },
+        { name: cat.name, url: absoluteUrl(`/kategorie/${cat.slug}`) },
+      ])}
+    />
     <div className="space-y-8">
       <div>
         <p className="text-sm text-zinc-500">

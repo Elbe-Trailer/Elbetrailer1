@@ -3,6 +3,9 @@ import { absoluteUrl } from "@/lib/site-url";
 
 const SITE_NAME = "elbe-trailer";
 
+/** Marken-Vorschaubild als Fallback für Seiten ohne eigenes Bild. */
+const DEFAULT_OG_IMAGE_PATH = "/hero/hero-trailer.png";
+
 type BuildPageMetadataInput = {
   title: string;
   description?: string;
@@ -21,7 +24,10 @@ export function buildPageMetadata({
   type = "website",
 }: BuildPageMetadataInput): Metadata {
   const url = absoluteUrl(path);
-  const images = image ? [{ url: image, alt: title }] : undefined;
+  // Eigenes Bild bevorzugen, sonst das Marken-Fallback verwenden, damit jede
+  // Seite ein Social-Vorschaubild hat.
+  const resolvedImage = image ?? absoluteUrl(DEFAULT_OG_IMAGE_PATH);
+  const images = [{ url: resolvedImage, alt: title }];
 
   return {
     title,
@@ -35,13 +41,13 @@ export function buildPageMetadata({
       siteName: SITE_NAME,
       locale: "de_DE",
       type,
-      ...(images ? { images } : {}),
+      images,
     },
     twitter: {
-      card: images ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      ...(images ? { images: [images[0].url] } : {}),
+      images: [resolvedImage],
     },
   };
 }

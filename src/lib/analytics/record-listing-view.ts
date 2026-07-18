@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const BOT_UA_PATTERN =
@@ -10,6 +9,12 @@ function isBotUserAgent(userAgent: string): boolean {
 
 type RecordListingViewOptions = {
   isAdminPreview?: boolean;
+  /**
+   * User-Agent des Requests. Muss vom Aufrufer übergeben werden, da
+   * `headers()` nicht innerhalb von `after()` aufgerufen werden darf
+   * (Next.js 16). Vor dem `after()`-Callback auslesen und hier durchreichen.
+   */
+  userAgent?: string;
 };
 
 export async function recordListingView(
@@ -19,9 +24,7 @@ export async function recordListingView(
   if (options.isAdminPreview) return;
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
 
-  const headersList = await headers();
-  const userAgent = headersList.get("user-agent") ?? "";
-  if (isBotUserAgent(userAgent)) return;
+  if (isBotUserAgent(options.userAgent ?? "")) return;
 
   try {
     const supabase = createServiceClient();

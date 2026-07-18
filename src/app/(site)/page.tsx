@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import JsonLd from "@/components/seo/JsonLd";
+import {
+  buildLocalBusinessSchema,
+  buildWebSiteSchema,
+} from "@/lib/seo/listing-schema";
 import FullBleed from "@/components/FullBleed";
 import HomeHero from "@/components/home/HomeHero";
 import HomeTrustStrip from "@/components/home/HomeTrustStrip";
@@ -65,6 +70,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <JsonLd data={[buildWebSiteSchema(), buildLocalBusinessSchema()]} />
       <HomeHero
         copy={{
           brand: copy["home.hero.brand"],
@@ -151,17 +157,15 @@ export default async function HomePage() {
           id="angebote"
           aria-labelledby="angebote-heading"
         >
-          <div
+          <h2
             id="angebote-heading"
-            role="heading"
-            aria-level={2}
             className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white"
           >
             <AdminInlineMarketingContentEditor
               contentKey="home.highlights.heading"
               value={copy["home.highlights.heading"]}
             />
-          </div>
+          </h2>
           {portfolio.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-300 p-10 text-center text-zinc-500 dark:border-zinc-700">
               <AdminInlineMarketingContentEditor
