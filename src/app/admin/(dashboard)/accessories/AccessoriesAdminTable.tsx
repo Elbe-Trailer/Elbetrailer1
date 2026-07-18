@@ -15,9 +15,15 @@ export type AccessoryAdminRow = {
 
 type AccessoryCategoryOption = { id: string; name: string };
 
+type ListingRef = { id: string; title: string };
+
 type Props = {
   rows: AccessoryAdminRow[];
   accessoryCategories: AccessoryCategoryOption[];
+  /** accessory_id → Inserate, die dieses Zubehör verwenden. */
+  usageByAccessory: Record<string, ListingRef[]>;
+  /** Alle Inserate, die überhaupt Zubehör verwenden (für den Filter). */
+  listings: ListingRef[];
 };
 
 function parseEuroToCents(value: string): number | null {
@@ -31,10 +37,14 @@ function parseEuroToCents(value: string): number | null {
 export default function AccessoriesAdminTable({
   rows,
   accessoryCategories,
+  usageByAccessory,
+  listings,
 }: Props) {
+  const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [articleNumber, setArticleNumber] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [listingId, setListingId] = useState("");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
 
@@ -47,19 +57,25 @@ export default function AccessoriesAdminTable({
   }, [accessoryCategories]);
 
   const hasActiveFilters =
+    name.trim() !== "" ||
     brand.trim() !== "" ||
     articleNumber.trim() !== "" ||
     categoryId !== "" ||
+    listingId !== "" ||
     priceMin.trim() !== "" ||
     priceMax.trim() !== "";
 
   const filtered = useMemo(() => {
+    const nm = name.trim().toLowerCase();
     const b = brand.trim().toLowerCase();
     const art = articleNumber.trim().toLowerCase();
     const minC = parseEuroToCents(priceMin);
     const maxC = parseEuroToCents(priceMax);
 
     return rows.filter((row) => {
+      if (nm && !row.name.toLowerCase().includes(nm)) {
+        return false;
+      }
       if (b && !(row.brand ?? "").toLowerCase().includes(b)) {
         return false;
       }
@@ -69,6 +85,10 @@ export default function AccessoriesAdminTable({
       if (categoryId) {
         if (row.category_id !== categoryId) return false;
       }
+      if (listingId) {
+        const used = usageByAccessory[row.id] ?? [];
+        if (!used.some((l) => l.id === listingId)) return false;
+      }
       if (minC != null || maxC != null) {
         const cents = row.price_adjustment_cents;
         if (minC != null && cents < minC) return false;
@@ -76,7 +96,17 @@ export default function AccessoriesAdminTable({
       }
       return true;
     });
-  }, [rows, brand, articleNumber, categoryId, priceMin, priceMax]);
+  }, [
+    rows,
+    name,
+    brand,
+    articleNumber,
+    categoryId,
+    listingId,
+    priceMin,
+    priceMax,
+    usageByAccessory,
+  ]);
 
   const inputClass =
     "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-500";
@@ -97,9 +127,11 @@ export default function AccessoriesAdminTable({
           <button
             type="button"
             onClick={() => {
+              setName("");
               setBrand("");
               setArticleNumber("");
               setCategoryId("");
+              setListingId("");
               setPriceMin("");
               setPriceMax("");
             }}
@@ -110,7 +142,32 @@ export default function AccessoriesAdminTable({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          Name
+          <input
+            type="search"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={`${inputClass} mt-1`}
+            placeholder="Name suchen …"
+          />
+        </label>
+        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          Verwendet in Inserat
+          <select
+            value={listingId}
+            onChange={(e) => setListingId(e.target.value)}
+            className={`${inputClass} mt-1`}
+          >
+            <option value="">Alle Inserate</option>
+            {listings.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.title}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
           Marke
           <input
@@ -176,7 +233,7 @@ export default function AccessoriesAdminTable({
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
@@ -185,6 +242,7 @@ export default function AccessoriesAdminTable({
                 <th className="px-4 py-3 font-medium">Kategorie</th>
                 <th className="px-4 py-3 font-medium">Aufschlag</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Verwendet in</th>
                 <th className="px-4 py-3 font-medium" />
               </tr>
             </thead>
@@ -207,6 +265,29 @@ export default function AccessoriesAdminTable({
                   </td>
                   <td className="px-4 py-3">
                     {r.active ? "aktiv" : "inaktiv"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const used = usageByAccessory[r.id] ?? [];
+                      if (!used.length) {
+                        return <span className="text-zinc-400">—</span>;
+                      }
+                      return (
+                        <div className="flex flex-wrap gap-x-2 gap-y-1">
+                          {used.map((l, i) => (
+                            <span key={l.id}>
+                              <Link
+                                href={`/admin/listings/${l.id}`}
+                                className="text-amber-700 hover:underline dark:text-amber-400"
+                              >
+                                {l.title}
+                              </Link>
+                              {i < used.length - 1 ? "," : ""}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link

@@ -16,6 +16,7 @@ import type {
 } from "@/types/database";
 import { normalizeSlug } from "@/lib/slug";
 import SuccessChoiceDialog from "@/components/admin/SuccessChoiceDialog";
+import ImageCropEditor from "@/components/admin/ImageCropEditor";
 import { saveListing, type SaveListingState } from "./actions";
 
 type LaRow = { accessory_id: string; max_quantity: number };
@@ -33,6 +34,18 @@ function accessoryDisplayName(a: AccessoryForListingConfig) {
   if (a.article_number) bits.push(`Art.-Nr. ${a.article_number}`);
   if (!bits.length) return a.name;
   return `${a.name} (${bits.join(" · ")})`;
+}
+
+function accessoryMatchesSearch(
+  a: AccessoryForListingConfig,
+  term: string,
+): boolean {
+  if (!term) return true;
+  const haystack = [a.name, a.brand, a.article_number]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(term);
 }
 
 function accessoryGroups(accessories: AccessoryForListingConfig[]) {
@@ -78,6 +91,12 @@ type UploadItem = {
   status: "uploading" | "done" | "error";
   error?: string;
 };
+
+// Bilder, die vor dem Upload noch zugeschnitten werden. Nur Raster-Formate,
+// die der Cropper anzeigen kann.
+type CropTask = { key: string; file: File };
+
+const CROPPABLE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 // Downscale + re-encode large photos in the browser before upload. Phone photos
 // are often 5–12 MB each; this keeps uploads fast and reliable without touching
@@ -147,9 +166,21 @@ export default function ListingForm({
   const linkMap = new Map(linked.map((r) => [r.accessory_id, r.max_quantity]));
 
   const groups = useMemo(() => accessoryGroups(accessories), [accessories]);
+  const [accessorySearch, setAccessorySearch] = useState("");
+  const accessorySearchTerm = accessorySearch.trim().toLowerCase();
+  const accessoryMatchCount = useMemo(
+    () =>
+      accessorySearchTerm
+        ? accessories.filter((a) => accessoryMatchesSearch(a, accessorySearchTerm))
+            .length
+        : accessories.length,
+    [accessories, accessorySearchTerm],
+  );
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [cropQueue, setCropQueue] = useState<CropTask[]>([]);
+  const [cropBatchTotal, setCropBatchTotal] = useState(0);
   const [newImagePaths, setNewImagePaths] = useState<string[]>([]);
   const [title, setTitle] = useState(listing?.title ?? "");
   const [slug, setSlug] = useState(listing?.slug ?? "");
@@ -218,9 +249,47 @@ export default function ListingForm({
     }
   }
 
+  // Neu gewählte Bilder zuerst in die Zuschneide-Warteschlange legen. Croppbare
+  // Raster-Formate durchlaufen den Editor; andere (z. B. GIF/HEIC) gehen direkt
+  // in den Upload.
+  function enqueueForCrop(files: File[]) {
+    const images = files.filter(
+      (f) => f.type.startsWith("image/") && f.size > 0,
+    );
+    if (!images.length) return;
+    const toCrop: CropTask[] = [];
+    const direct: File[] = [];
+    images.forEach((file, index) => {
+      if (CROPPABLE_TYPES.includes(file.type)) {
+        toCrop.push({
+          key: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+          file,
+        });
+      } else {
+        direct.push(file);
+      }
+    });
+    if (direct.length) void uploadFiles(direct);
+    if (toCrop.length) {
+      setCropBatchTotal(toCrop.length);
+      setCropQueue(toCrop);
+    }
+  }
+
+  // Zuschnitt bestätigt (oder ganzes Bild übernommen) → hochladen, nächstes Bild.
+  function handleCropApply(cropped: File) {
+    void uploadFiles([cropped]);
+    setCropQueue((prev) => prev.slice(1));
+  }
+
+  // Bild überspringen (nicht hochladen) → nächstes Bild.
+  function handleCropCancel() {
+    setCropQueue((prev) => prev.slice(1));
+  }
+
   function handleImageSelection(files: FileList | null) {
     if (!files?.length) return;
-    void uploadFiles(Array.from(files));
+    enqueueForCrop(Array.from(files));
     // Reset the input so re-selecting the same file triggers a fresh upload.
     if (imageInputRef.current) imageInputRef.current.value = "";
   }
@@ -230,7 +299,7 @@ export default function ListingForm({
     setIsDragActive(false);
     const files = event.dataTransfer.files;
     if (!files?.length) return;
-    void uploadFiles(Array.from(files));
+    enqueueForCrop(Array.from(files));
   }
 
   return (
@@ -244,6 +313,19 @@ export default function ListingForm({
           continueLabel="Weiter bearbeiten"
           overviewHref="/admin/listings"
           continueHref={`/admin/listings/${listingCreated.listingId}`}
+        />
+      ) : null}
+      {cropQueue.length ? (
+        <ImageCropEditor
+          key={cropQueue[0].key}
+          file={cropQueue[0].file}
+          counterLabel={
+            cropBatchTotal > 1
+              ? `${cropBatchTotal - cropQueue.length + 1}/${cropBatchTotal}`
+              : undefined
+          }
+          onApply={handleCropApply}
+          onCancel={handleCropCancel}
         />
       ) : null}
       <form
@@ -360,8 +442,8 @@ export default function ListingForm({
             Bilder hierher ziehen oder im Browser auswählen
           </p>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            JPG, PNG, WEBP. Große Fotos werden automatisch verkleinert und einzeln
-            hochgeladen.
+            JPG, PNG, WEBP. Vor dem Upload lässt sich der Bildausschnitt
+            zuschneiden. Große Fotos werden automatisch verkleinert.
           </p>
         </label>
 
@@ -789,46 +871,79 @@ export default function ListingForm({
               Keine Zubehör-Artikel angelegt — unter „Zubehör“ im Admin anlegen.
             </p>
           ) : (
-            groups.map((group) => (
-              <div key={group.key}>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
-                  {group.label}
-                  {!group.allowsMultiple ? (
-                    <span className="ml-2 font-normal normal-case text-zinc-400">
-                      (Kunde wählt im Konfigurator nur eine Option)
-                    </span>
-                  ) : null}
-                </p>
-                <ul className="space-y-2">
-                  {group.items.map((a) => (
-                    <li
-                      key={a.id}
-                      className="flex flex-wrap items-center gap-3"
-                    >
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          name="accessory"
-                          value={a.id}
-                          defaultChecked={linkMap.has(a.id)}
-                        />
-                        {accessoryDisplayName(a)}
-                      </label>
-                      <label className="flex items-center gap-1 text-xs text-zinc-500">
-                        max.
-                        <input
-                          name={`max_${a.id}`}
-                          type="number"
-                          min="1"
-                          defaultValue={linkMap.get(a.id) ?? 1}
-                          className="w-16 rounded border border-zinc-300 px-1 py-0.5 dark:border-zinc-600 dark:bg-zinc-950"
-                        />
-                      </label>
-                    </li>
-                  ))}
-                </ul>
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="search"
+                  value={accessorySearch}
+                  onChange={(e) => setAccessorySearch(e.target.value)}
+                  placeholder="Zubehör suchen (Name, Marke, Art.-Nr.) …"
+                  className="min-w-0 flex-1 rounded border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-950"
+                />
+                {accessorySearchTerm ? (
+                  <span className="text-xs text-zinc-500">
+                    {accessoryMatchCount} Treffer
+                  </span>
+                ) : null}
               </div>
-            ))
+              {accessorySearchTerm && accessoryMatchCount === 0 ? (
+                <p className="text-sm text-zinc-500">
+                  Kein Zubehör passt zu „{accessorySearch.trim()}“.
+                </p>
+              ) : null}
+              {/* Nicht passende Einträge werden nur ausgeblendet (nicht aus dem
+                  DOM entfernt), damit angehakte Zubehöre auch bei aktiver Suche
+                  gespeichert werden. */}
+              {groups.map((group) => {
+                const groupHasMatch = group.items.some((a) =>
+                  accessoryMatchesSearch(a, accessorySearchTerm),
+                );
+                return (
+                  <div key={group.key} className={groupHasMatch ? "" : "hidden"}>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                      {group.label}
+                      {!group.allowsMultiple ? (
+                        <span className="ml-2 font-normal normal-case text-zinc-400">
+                          (Kunde wählt im Konfigurator nur eine Option)
+                        </span>
+                      ) : null}
+                    </p>
+                    <ul className="space-y-2">
+                      {group.items.map((a) => (
+                        <li
+                          key={a.id}
+                          className={`flex flex-wrap items-center gap-3 ${
+                            accessoryMatchesSearch(a, accessorySearchTerm)
+                              ? ""
+                              : "hidden"
+                          }`}
+                        >
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              name="accessory"
+                              value={a.id}
+                              defaultChecked={linkMap.has(a.id)}
+                            />
+                            {accessoryDisplayName(a)}
+                          </label>
+                          <label className="flex items-center gap-1 text-xs text-zinc-500">
+                            max.
+                            <input
+                              name={`max_${a.id}`}
+                              type="number"
+                              min="1"
+                              defaultValue={linkMap.get(a.id) ?? 1}
+                              className="w-16 rounded border border-zinc-300 px-1 py-0.5 dark:border-zinc-600 dark:bg-zinc-950"
+                            />
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </>
           )}
         </div>
       </div>
