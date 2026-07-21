@@ -8,6 +8,11 @@ const DEFAULT_OG_IMAGE_PATH = "/hero/hero-trailer.png";
 
 type BuildPageMetadataInput = {
   title: string;
+  /**
+   * Title als absoluten Wert ausgeben (ohne das "%s | elbe-trailer"-Template),
+   * z. B. für kuratierte SEO-Titles mit fester Zeichengrenze.
+   */
+  titleAbsolute?: boolean;
   description?: string;
   path: string;
   image?: string | null;
@@ -17,6 +22,7 @@ type BuildPageMetadataInput = {
 
 export function buildPageMetadata({
   title,
+  titleAbsolute = false,
   description,
   path,
   image,
@@ -30,7 +36,7 @@ export function buildPageMetadata({
   const images = [{ url: resolvedImage, alt: title }];
 
   return {
-    title,
+    title: titleAbsolute ? { absolute: title } : title,
     description,
     alternates: { canonical: url },
     ...(noIndex ? { robots: { index: false, follow: false } } : {}),

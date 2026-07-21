@@ -83,6 +83,27 @@ export type ListingAccessoryRow = {
   max_quantity: number;
 };
 
+/** Eingabemodus des Verkaufspreises im Admin-Formular. Gespeichert wird immer Brutto. */
+export type VkInputMode = "brutto" | "netto";
+
+/** Nur für Admins lesbar (RLS) — darf nie ins Käufer-Frontend gelangen. */
+export type ListingCost = {
+  listing_id: string;
+  purchase_price_net_cents: number | null;
+  vk_input_mode: VkInputMode;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Nur für Admins lesbar (RLS) — darf nie ins Käufer-Frontend gelangen. */
+export type AccessoryCost = {
+  accessory_id: string;
+  purchase_price_net_cents: number | null;
+  vk_input_mode: VkInputMode;
+  created_at: string;
+  updated_at: string;
+};
+
 export type BlogCategory = {
   id: string;
   slug: string;

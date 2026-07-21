@@ -3,20 +3,26 @@
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
 import { removeObjects, uploadObject } from "@/lib/storage-provider";
+import { nettoEnteredToGross } from "@/lib/vat";
+import { COSTS_MIGRATION_HINT, upsertCostRow } from "@/lib/admin/costs";
+import { eurStringToCents } from "@/components/admin/priceInput";
+import type { VkInputMode } from "@/types/database";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 function parseEuroToCents(v: FormDataEntryValue | null): number {
-  if (v == null || v === "") return 0;
-  const n = Number.parseFloat(String(v).replace(",", "."));
-  if (!Number.isFinite(n)) return 0;
-  return Math.round(n * 100);
+  return v == null ? 0 : (eurStringToCents(String(v)) ?? 0);
+}
+
+// Für den EK muss "leer" null ergeben, nicht 0 (kein EK ≠ EK von 0 €).
+function parseEuroToCentsOrNull(v: FormDataEntryValue | null): number | null {
+  return v == null ? null : eurStringToCents(String(v));
 }
 
 export type SaveAccessoryState =
   | undefined
   | { ok: false; error: string }
-  | { ok: true; accessoryId: string; created: boolean };
+  | { ok: true; accessoryId: string; created: boolean; warning?: string };
 
 async function uploadAccImage(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
@@ -49,9 +55,30 @@ export async function saveAccessory(
     String(formData.get("article_number") ?? "").trim() || null;
   const brand = String(formData.get("brand") ?? "").trim() || null;
   const category_id = String(formData.get("category_id") ?? "").trim() || null;
-  const price_adjustment_cents = parseEuroToCents(
+  const { data: existing } = id
+    ? await supabase
+        .from("accessories")
+        .select("image_path, price_adjustment_cents")
+        .eq("id", id)
+        .maybeSingle()
+    : { data: null };
+  // Gespeichert wird immer Brutto; bei Netto-Eingabe wird hier konvertiert
+  // (mit Drift-Schutz: unveränderte Netto-Anzeige behält den Brutto-Wert).
+  const vk_input_mode: VkInputMode =
+    formData.get("vk_input_mode") === "netto" ? "netto" : "brutto";
+  const enteredAdjustment = parseEuroToCents(
     formData.get("price_adjustment_eur"),
   );
+  const price_adjustment_cents =
+    vk_input_mode === "netto"
+      ? nettoEnteredToGross(enteredAdjustment, existing?.price_adjustment_cents)
+      : enteredAdjustment;
+  const purchase_price_net_cents = parseEuroToCentsOrNull(
+    formData.get("purchase_net_eur"),
+  );
+  if (purchase_price_net_cents != null && purchase_price_net_cents < 0) {
+    return { ok: false, error: "Einkaufspreis darf nicht negativ sein." };
+  }
   const active = formData.get("active") === "on";
   const file = formData.get("image") as File | null;
   const hasFile = file && typeof file !== "string" && file.size > 0;
@@ -77,15 +104,21 @@ export async function saveAccessory(
       console.error(error);
       return { ok: false, error: "Anlegen fehlgeschlagen." };
     }
+    // Das Zubehör ist bereits angelegt — ein EK-Fehler wird nur als Warnung
+    // gemeldet, sonst verleitet der Fehlerzustand zum doppelten Anlegen.
+    const costResult = await upsertCostRow(supabase, "accessory", newId, {
+      purchase_price_net_cents,
+      vk_input_mode,
+    });
+    const createWarning = costResult.ok
+      ? undefined
+      : costResult.missingTable
+        ? COSTS_MIGRATION_HINT
+        : "Zubehör angelegt, aber der Einkaufspreis konnte nicht gespeichert werden. Bitte erneut speichern.";
     revalidatePath("/admin/accessories");
-    return { ok: true, accessoryId: newId, created: true };
+    return { ok: true, accessoryId: newId, created: true, warning: createWarning };
   }
 
-  const { data: existing } = await supabase
-    .from("accessories")
-    .select("image_path")
-    .eq("id", id)
-    .single();
   let image_path = existing?.image_path ?? null;
   if (hasFile) {
     const p = await uploadAccImage(supabase, id, file!);
@@ -111,7 +144,25 @@ export async function saveAccessory(
     return { ok: false, error: "Speichern fehlgeschlagen." };
   }
 
+  // EK + Eingabemodus in der admin-only Tabelle speichern. Unbedingter Upsert,
+  // damit der Modus auch ohne EK erhalten bleibt (EK null ≠ EK 0). Das Zubehör
+  // ist bereits gespeichert — ein EK-Fehler wird nur als Warnung gemeldet.
+  const costResult = await upsertCostRow(supabase, "accessory", id, {
+    purchase_price_net_cents,
+    vk_input_mode,
+  });
+
   revalidatePath("/admin/accessories");
+  if (!costResult.ok) {
+    return {
+      ok: true,
+      accessoryId: id,
+      created: false,
+      warning: costResult.missingTable
+        ? COSTS_MIGRATION_HINT
+        : "Zubehör gespeichert, aber der Einkaufspreis konnte nicht gespeichert werden. Bitte erneut speichern.",
+    };
+  }
   redirect(withAdminSavedParam(`/admin/accessories/${id}`));
 }
 

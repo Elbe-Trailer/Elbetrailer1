@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/site-url";
 import { listingPublicPath } from "@/lib/listing-url";
+import { getIndexableBrands } from "@/lib/brands";
+import { listServiceAreas } from "@/lib/service-areas";
 import { createClient } from "@/lib/supabase/server";
 
 const STATIC_ROUTES: Array<{ path: string; priority: number }> = [
@@ -43,12 +45,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
+  const { data: listings } = await supabase
+    .from("listings")
+    .select("slug, updated_at, category_id, listing_type")
+    .eq("published", true);
+
+  // Kategorien nur aufnehmen, wenn sie mindestens ein Kauf-Inserat enthalten —
+  // die Kategorieseite zeigt ausschließlich kauf/kauf_und_miete. Leere Kategorien
+  // im Sitemap wären ein Thin-Content-Signal.
+  const kaufCategoryIds = new Set(
+    (listings ?? [])
+      .filter(
+        (l) =>
+          l.listing_type === "kauf" || l.listing_type === "kauf_und_miete",
+      )
+      .map((l) => l.category_id)
+      .filter(Boolean),
+  );
+
   const { data: categories } = await supabase
     .from("categories")
-    .select("slug")
+    .select("id, slug")
     .eq("is_active", true);
 
   for (const cat of categories ?? []) {
+    if (!kaufCategoryIds.has(cat.id)) continue;
     entries.push({
       url: `${base}/kategorie/${cat.slug}`,
       lastModified: now,
@@ -57,10 +78,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
-  const { data: listings } = await supabase
-    .from("listings")
-    .select("slug, updated_at")
-    .eq("published", true);
+  // Marken: nur indexierbare Markenseiten (Bestand ≥ Schwelle + redaktioneller
+  // Text). Eine Marke ohne Kauf-Bestand darf keine Sitemap-URL bekommen.
+  const indexableBrands = await getIndexableBrands(supabase);
+  if (indexableBrands.length > 0) {
+    entries.push({
+      url: `${base}/marke`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    });
+    for (const brand of indexableBrands) {
+      entries.push({
+        url: `${base}/marke/${brand.slug}`,
+        lastModified: now,
+        changeFrequency: "weekly",
+        priority: 0.8,
+      });
+    }
+  }
+
+  // Standort-/Einzugsgebietsseiten (kuratiert, jeweils mit eigenem Text).
+  for (const area of listServiceAreas()) {
+    entries.push({
+      url: `${base}/anhaenger-kaufen/${area.slug}`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    });
+  }
 
   for (const listing of listings ?? []) {
     if (!listing.slug) continue;

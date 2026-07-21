@@ -5,21 +5,25 @@ import AdminInlineMarketingContentEditor from "@/components/site/AdminInlineMark
 import {
   FOOTER_MARKETING_KEYS,
   getCachedActiveCategories,
+  getCachedIndexableBrands,
   getCachedMarketingContentMap,
   pickMarketingContent,
 } from "@/lib/site-data";
+import { listServiceAreas } from "@/lib/service-areas";
 
 export default async function Footer() {
-  const [categories, marketing] = await Promise.all([
+  const [categories, brands, marketing] = await Promise.all([
     getCachedActiveCategories(),
+    getCachedIndexableBrands(),
     getCachedMarketingContentMap(),
   ]);
   const copy = pickMarketingContent(marketing, FOOTER_MARKETING_KEYS);
+  const serviceAreas = listServiceAreas();
 
   return (
     <footer className="mt-auto border-t border-zinc-200 bg-zinc-100 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-400">
       <div className="mx-auto max-w-7xl px-4 py-12">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
               <AdminInlineMarketingContentEditor
@@ -66,6 +70,52 @@ export default async function Footer() {
             </ul>
           </div>
 
+          {brands.length > 0 ? (
+            <div>
+              <div className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
+                Marken
+              </div>
+              <ul className="mt-4 space-y-2">
+                {brands.map((brand) => (
+                  <li key={brand.slug}>
+                    <Link
+                      className="text-zinc-800 hover:underline dark:text-zinc-200"
+                      href={`/marke/${brand.slug}`}
+                    >
+                      {brand.displayName} Anhänger kaufen
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <Link
+                    className="text-zinc-500 hover:underline dark:text-zinc-400"
+                    href="/marke"
+                  >
+                    Alle Marken
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          ) : null}
+
+          <div>
+            <div className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
+              Anhänger kaufen in …
+            </div>
+            <ul className="mt-4 space-y-2">
+              {serviceAreas.map((area) => (
+                <li key={area.slug}>
+                  <Link
+                    className="text-zinc-800 hover:underline dark:text-zinc-200"
+                    href={`/anhaenger-kaufen/${area.slug}`}
+                  >
+                    Anhänger kaufen {area.city}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <div>
             <div className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-500">
               <AdminInlineMarketingContentEditor
@@ -74,6 +124,14 @@ export default async function Footer() {
               />
             </div>
             <ul className="mt-4 space-y-2">
+              <li>
+                <Link
+                  className="text-zinc-800 hover:underline dark:text-zinc-200"
+                  href="/anhaenger"
+                >
+                  Anhänger kaufen
+                </Link>
+              </li>
               <li>
                 <Link
                   className="text-zinc-800 hover:underline dark:text-zinc-200"

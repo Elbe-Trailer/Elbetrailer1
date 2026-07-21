@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import StorageImage from "@/components/StorageImage";
+import PriceVatBreakdown from "@/components/PriceVatBreakdown";
 import { formatEurFromCents } from "@/lib/format";
 import { calculateRentalPrice } from "@/lib/rentalPricing";
 import type { Accessory, AccessorySelection } from "@/types/database";
@@ -277,9 +278,17 @@ export default function Configurator({
           <span>{isRental ? "Zubehör (pro Tag)" : "Zubehör"}</span>
           <span>{formatEurFromCents(accessoryTotal)}</span>
         </div>
-        <div className="mt-3 flex justify-between border-t border-zinc-300 pt-3 font-semibold dark:border-zinc-600">
-          <span>{isRental ? "Richtwert gesamt (pro Tag)" : "Richtwert gesamt"}</span>
-          <span>{formatEurFromCents(grand)}</span>
+        <div className="mt-3 border-t border-zinc-300 pt-3 dark:border-zinc-600">
+          <div className="flex justify-between font-semibold">
+            <span>{isRental ? "Richtwert gesamt (pro Tag)" : "Richtwert gesamt"}</span>
+            <span>{formatEurFromCents(grand)}</span>
+          </div>
+          <p className="text-right text-xs text-zinc-500 dark:text-zinc-400">
+            inkl. 19 % MwSt
+          </p>
+          {/* Bei gewähltem Mietzeitraum erscheint die Aufschlüsselung unten
+              beim Endpreis, damit nicht zwei Aufschlüsselungen konkurrieren. */}
+          {!hasRentalRange ? <PriceVatBreakdown grossCents={grand} /> : null}
         </div>
         {hasRentalRange ? (
           <>
@@ -306,14 +315,22 @@ export default function Configurator({
                 </div>
               </>
             ) : null}
-            <div className="mt-1 flex justify-between text-zinc-700 dark:text-zinc-200">
-              <span className="font-semibold">
-                Endpreis ({formatDateLabel(rentalStartDate)} -{" "}
-                {formatDateLabel(rentalEndDate)})
-              </span>
-              <span className="font-semibold">
-                {formatEurFromCents(rentalPrice.finalTotalCents)}
-              </span>
+            <div className="mt-1 text-zinc-700 dark:text-zinc-200">
+              <div className="flex justify-between">
+                <span className="font-semibold">
+                  Endpreis ({formatDateLabel(rentalStartDate)} -{" "}
+                  {formatDateLabel(rentalEndDate)})
+                </span>
+                <span className="font-semibold">
+                  {formatEurFromCents(rentalPrice.finalTotalCents)}
+                </span>
+              </div>
+              <p className="text-right text-xs text-zinc-500 dark:text-zinc-400">
+                inkl. 19 % MwSt
+              </p>
+              {/* Aus dem Endpreis nach Rabatt rechnen — grossTotalCents ist der
+                  Vor-Rabatt-Betrag, kein MwSt-Brutto. */}
+              <PriceVatBreakdown grossCents={rentalPrice.finalTotalCents} />
             </div>
           </>
         ) : null}

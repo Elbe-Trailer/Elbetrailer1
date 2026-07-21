@@ -6,7 +6,8 @@ import {
   normalizeAccessoriesForListingConfig,
   type RawAccessoryForListingRow,
 } from "@/lib/accessoryListingConfig";
-import type { Listing } from "@/types/database";
+import type { Listing, ListingCost } from "@/types/database";
+import PriceIncreasePanel from "@/components/admin/PriceIncreasePanel";
 import { deleteListing } from "../actions";
 import ListingForm from "../ListingForm";
 
@@ -24,7 +25,7 @@ export default async function EditListingPage({ params }: Props) {
 
   if (!listing) notFound();
 
-  const [{ data: categories }, { data: accessories }, { data: la }] =
+  const [{ data: categories }, { data: accessories }, { data: la }, { data: cost }] =
     await Promise.all([
       supabase.from("categories").select("id, name").order("sort_order"),
       supabase
@@ -37,6 +38,11 @@ export default async function EditListingPage({ params }: Props) {
         .from("listing_accessories")
         .select("accessory_id, max_quantity")
         .eq("listing_id", id),
+      supabase
+        .from("listing_costs")
+        .select("*")
+        .eq("listing_id", id)
+        .maybeSingle(),
     ]);
 
   const l = listing as Listing;
@@ -64,6 +70,16 @@ export default async function EditListingPage({ params }: Props) {
         categories={categories ?? []}
         accessories={accessoriesForForm}
         currentGalleryPaths={l.gallery_paths ?? []}
+        cost={(cost as ListingCost | null) ?? null}
+      />
+
+      <PriceIncreasePanel
+        kind="listing"
+        id={id}
+        currentVkCents={l.price_cents}
+        currentEkNetCents={
+          (cost as ListingCost | null)?.purchase_price_net_cents ?? null
+        }
       />
 
       <form action={deleteListing} className="border-t border-red-200 pt-8 dark:border-red-900">

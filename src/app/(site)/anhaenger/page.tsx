@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ContentContainer from "@/components/ContentContainer";
+import JsonLd from "@/components/seo/JsonLd";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import {
+  buildBreadcrumbSchema,
+  buildItemListSchema,
+} from "@/lib/seo/listing-schema";
+import { absoluteUrl } from "@/lib/site-url";
+import { listingPublicPath } from "@/lib/listing-url";
 import ListingFilters from "@/components/ListingFilters";
 import ListingCard from "@/components/ListingCard";
 import {
@@ -190,6 +197,24 @@ export default async function AnhaengerPage({ searchParams }: Props) {
 
   return (
     <ContentContainer>
+      <JsonLd
+        data={[
+          buildBreadcrumbSchema([
+            { name: "Start", url: absoluteUrl("/") },
+            { name: "Anhänger kaufen", url: absoluteUrl("/anhaenger") },
+          ]),
+          ...(list.length
+            ? [
+                buildItemListSchema(
+                  list.map((listing) => ({
+                    url: absoluteUrl(listingPublicPath(listing.slug)),
+                    name: listing.title,
+                  })),
+                ),
+              ]
+            : []),
+        ]}
+      />
       <div className="space-y-8">
         <div>
           <p className="text-sm text-zinc-500">
@@ -197,10 +222,10 @@ export default async function AnhaengerPage({ searchParams }: Props) {
               Start
             </Link>
             <span className="mx-2">/</span>
-            <span>Alle Anhänger</span>
+            <span>Anhänger kaufen</span>
           </p>
           <h1 className="mt-2 text-3xl font-bold text-zinc-900 dark:text-white">
-            Alle Anhänger
+            Anhänger kaufen
           </h1>
           <p className="mt-2 max-w-2xl text-zinc-600 dark:text-zinc-400">
             Alle veröffentlichten Kauf-Inserate in einer Übersicht, unabhängig von

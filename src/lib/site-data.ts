@@ -10,6 +10,11 @@ import {
   type MarketingContentKey,
 } from "@/lib/marketing-content";
 import { createAnonServerClient } from "@/lib/supabase/anon-server";
+import {
+  getPublishedBrands,
+  mergeAuthoredBrands,
+  type PublishedBrand,
+} from "@/lib/brands";
 import type { Listing } from "@/types/database";
 
 export type SiteCategory = { slug: string; name: string };
@@ -54,6 +59,35 @@ export const getCachedActiveCategories = unstable_cache(
     tags: [SITE_CACHE_TAGS.categories],
   },
 );
+
+/**
+ * Marken mit veröffentlichten Kauf-Inseraten (für Footer-Markenlinks & Co.).
+ * Zeitbasiert revalidiert; für sofortige Aktualisierung bei Inserats-Änderungen
+ * kann später `revalidateTag(SITE_CACHE_TAGS.brands)` in den Admin-Actions ergänzt werden.
+ */
+export const getCachedPublishedBrands = unstable_cache(
+  async (): Promise<PublishedBrand[]> => {
+    try {
+      const supabase = createAnonServerClient();
+      return await getPublishedBrands(supabase);
+    } catch {
+      return [];
+    }
+  },
+  ["site-published-brands"],
+  {
+    revalidate: SITE_CACHE_REVALIDATE_SECONDS,
+    tags: [SITE_CACHE_TAGS.brands],
+  },
+);
+
+/**
+ * Indexierbare Markenseiten für Footer/Navigation — gepflegte Marken inkl.
+ * bestandsloser (kaufCount = 0), damit sie intern verlinkt und crawlbar sind.
+ */
+export async function getCachedIndexableBrands(): Promise<PublishedBrand[]> {
+  return mergeAuthoredBrands(await getCachedPublishedBrands());
+}
 
 export const getCachedMarketingContentMap = unstable_cache(
   async () => {

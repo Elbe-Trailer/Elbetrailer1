@@ -10,3 +10,7 @@ export function formatMm(mm: number | null | undefined): string {
   if (mm == null) return "—";
   return `${mm} mm`;
 }
+
+export function formatPercentDe(p: number, digits = 1): string {
+  return `${p.toFixed(digits).replace(".", ",")} %`;
+}

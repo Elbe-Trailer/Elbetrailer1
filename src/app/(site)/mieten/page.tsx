@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import ContentContainer from "@/components/ContentContainer";
+import JsonLd from "@/components/seo/JsonLd";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import {
+  buildBreadcrumbSchema,
+  buildItemListSchema,
+} from "@/lib/seo/listing-schema";
+import { absoluteUrl } from "@/lib/site-url";
+import { listingPublicPath } from "@/lib/listing-url";
 import ListingCard from "@/components/ListingCard";
 import ListingSortSelect from "@/components/ListingSortSelect";
 import {
@@ -51,6 +58,26 @@ export default async function MietenPage({ searchParams }: Props) {
 
   return (
     <ContentContainer>
+    <JsonLd
+      data={[
+        buildBreadcrumbSchema([
+          { name: "Start", url: absoluteUrl("/") },
+          { name: "Anhänger mieten", url: absoluteUrl("/mieten") },
+        ]),
+        ...(list.length
+          ? [
+              buildItemListSchema(
+                list.map((listing) => ({
+                  url: absoluteUrl(
+                    listingPublicPath(listing.slug, "?ansicht=miete"),
+                  ),
+                  name: listing.title,
+                })),
+              ),
+            ]
+          : []),
+      ]}
+    />
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">

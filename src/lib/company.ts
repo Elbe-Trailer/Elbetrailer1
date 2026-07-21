@@ -20,8 +20,25 @@ export const COMPANY = {
     street: "Sachsenwaldstraße 13",
     postalCode: "21493",
     locality: "Möhnsen",
+    /** Bundesland — für schema.org addressRegion & lokale Relevanz. */
+    region: "Schleswig-Holstein",
     country: "DE",
   },
+  /**
+   * Geo-Koordinaten des Standorts — aus dem Google-Unternehmensprofil-Pin
+   * (Elbe-Trailer Anhängerverkauf und Vermietung, Möhnsen). Speisen das
+   * LocalBusiness-Schema (GeoCoordinates).
+   */
+  geo: { latitude: 53.5598276, longitude: 10.4652078 } as
+    | null
+    | { latitude: number; longitude: number },
+  /** Google-Maps-URL des Standorts — für schema.org hasMap. */
+  mapUrl: "https://maps.app.goo.gl/RwHJEzdu8Rqf4XMUA" as string,
+  /**
+   * Verifizierte Profile (Google-Unternehmensprofil/Maps, Social) als schema.org
+   * sameAs — für den Entitäts-Abgleich bei Google.
+   */
+  sameAs: ["https://maps.app.goo.gl/RwHJEzdu8Rqf4XMUA"] as string[],
   /**
    * Öffnungszeiten für schema.org openingHoursSpecification.
    * Sonntag/Feiertag geschlossen → nicht aufgeführt (impliziert geschlossen).

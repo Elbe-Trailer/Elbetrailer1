@@ -12,9 +12,23 @@ import type {
   AccessoryForListingConfig,
   Category,
   Listing,
+  ListingCost,
   ListingType,
+  VkInputMode,
 } from "@/types/database";
 import { normalizeSlug } from "@/lib/slug";
+import { formatEurFromCents } from "@/lib/format";
+import {
+  grossToNetCents,
+  marginCents,
+  marginPercent,
+  netToGrossCents,
+} from "@/lib/vat";
+import {
+  centsToEurString,
+  convertEurString,
+  eurStringToCents,
+} from "@/components/admin/priceInput";
 import SuccessChoiceDialog from "@/components/admin/SuccessChoiceDialog";
 import ImageCropEditor from "@/components/admin/ImageCropEditor";
 import { saveListing, type SaveListingState } from "./actions";
@@ -83,6 +97,7 @@ type Props = {
   categories: Pick<Category, "id" | "name">[];
   accessories: AccessoryForListingConfig[];
   currentGalleryPaths?: string[];
+  cost?: ListingCost | null;
 };
 
 type UploadItem = {
@@ -147,6 +162,7 @@ export default function ListingForm({
   categories,
   accessories,
   currentGalleryPaths = EMPTY_GALLERY_PATHS,
+  cost = null,
 }: Props) {
   const initialType = (listing?.listing_type as ListingType | undefined) ?? "kauf";
   const [offerKauf, setOfferKauf] = useState(
@@ -155,6 +171,93 @@ export default function ListingForm({
   const [offerMiete, setOfferMiete] = useState(
     () => initialType !== "kauf",
   );
+
+  // Gespeichert ist immer Brutto; die Felder zeigen den Wert im gewählten Modus.
+  const initialVkMode: VkInputMode = cost?.vk_input_mode ?? "brutto";
+  const [vkMode, setVkMode] = useState<VkInputMode>(initialVkMode);
+  const [priceEur, setPriceEur] = useState(() =>
+    listing?.price_cents != null
+      ? centsToEurString(
+          initialVkMode === "netto"
+            ? grossToNetCents(listing.price_cents)
+            : listing.price_cents,
+        )
+      : "",
+  );
+  const [dailyEur, setDailyEur] = useState(() =>
+    listing?.daily_rate_cents != null
+      ? centsToEurString(
+          initialVkMode === "netto"
+            ? grossToNetCents(listing.daily_rate_cents)
+            : listing.daily_rate_cents,
+        )
+      : "",
+  );
+  const [purchaseNetEur, setPurchaseNetEur] = useState(() =>
+    cost?.purchase_price_net_cents != null
+      ? centsToEurString(cost.purchase_price_net_cents)
+      : "",
+  );
+
+  function switchVkMode(next: VkInputMode) {
+    if (next === vkMode) return;
+    setPriceEur((v) => convertEurString(v, vkMode, next));
+    setDailyEur((v) => convertEurString(v, vkMode, next));
+    setVkMode(next);
+  }
+
+  // Nach einem Server-Refresh (z. B. durch das "Preise anpassen"-Panel auf
+  // derselben Seite) die Preisfelder aus den neuen Props neu initialisieren —
+  // sonst würde ein späteres Speichern die Anpassung stillschweigend
+  // zurückdrehen. Gleiches "adjust state during render"-Muster wie bei den
+  // Galerie-Pfaden unten.
+  const priceSyncKey = [
+    listing?.price_cents ?? "",
+    listing?.daily_rate_cents ?? "",
+    cost?.purchase_price_net_cents ?? "",
+    cost?.vk_input_mode ?? "",
+  ].join("|");
+  const [prevPriceSyncKey, setPrevPriceSyncKey] = useState(priceSyncKey);
+  if (priceSyncKey !== prevPriceSyncKey) {
+    setPrevPriceSyncKey(priceSyncKey);
+    const mode = cost?.vk_input_mode ?? "brutto";
+    setVkMode(mode);
+    setPriceEur(
+      listing?.price_cents != null
+        ? centsToEurString(
+            mode === "netto"
+              ? grossToNetCents(listing.price_cents)
+              : listing.price_cents,
+          )
+        : "",
+    );
+    setDailyEur(
+      listing?.daily_rate_cents != null
+        ? centsToEurString(
+            mode === "netto"
+              ? grossToNetCents(listing.daily_rate_cents)
+              : listing.daily_rate_cents,
+          )
+        : "",
+    );
+    setPurchaseNetEur(
+      cost?.purchase_price_net_cents != null
+        ? centsToEurString(cost.purchase_price_net_cents)
+        : "",
+    );
+  }
+
+  const priceEnteredCents = eurStringToCents(priceEur);
+  const dailyEnteredCents = eurStringToCents(dailyEur);
+  const priceGrossCents =
+    priceEnteredCents == null
+      ? null
+      : vkMode === "netto"
+        ? netToGrossCents(priceEnteredCents)
+        : priceEnteredCents;
+  const ekNetCents = eurStringToCents(purchaseNetEur);
+  const liveMargin = marginCents(priceGrossCents, ekNetCents);
+  const liveMarginPct = marginPercent(priceGrossCents, ekNetCents);
   const [state, formAction, pending] = useActionState<
     SaveListingState,
     FormData
@@ -181,6 +284,9 @@ export default function ListingForm({
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [cropQueue, setCropQueue] = useState<CropTask[]>([]);
   const [cropBatchTotal, setCropBatchTotal] = useState(0);
+  // Bleibt über mehrere Bilder einer Auswahl erhalten (der Cropper wird pro
+  // Bild neu gemountet), damit alle Titelbilder einheitlich zugeschnitten sind.
+  const [cropAspectLocked, setCropAspectLocked] = useState(false);
   const [newImagePaths, setNewImagePaths] = useState<string[]>([]);
   const [title, setTitle] = useState(listing?.title ?? "");
   const [slug, setSlug] = useState(listing?.slug ?? "");
@@ -326,6 +432,8 @@ export default function ListingForm({
           }
           onApply={handleCropApply}
           onCancel={handleCropCancel}
+          aspectLocked={cropAspectLocked}
+          onAspectLockedChange={setCropAspectLocked}
         />
       ) : null}
       <form
@@ -345,6 +453,11 @@ export default function ListingForm({
       {state?.ok === false ? (
         <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/50 dark:text-red-200">
           {state.error}
+        </p>
+      ) : null}
+      {state?.ok === true && state.warning ? (
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+          {state.warning}
         </p>
       ) : null}
 
@@ -595,10 +708,39 @@ export default function ListingForm({
         </div>
       </fieldset>
 
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">Preiseingabe</legend>
+        <div className="flex flex-wrap gap-6">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name="vk_input_mode"
+              value="brutto"
+              checked={vkMode === "brutto"}
+              onChange={() => switchVkMode("brutto")}
+            />
+            Brutto (inkl. 19 % MwSt.)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name="vk_input_mode"
+              value="netto"
+              checked={vkMode === "netto"}
+              onChange={() => switchVkMode("netto")}
+            />
+            Netto (zzgl. MwSt.)
+          </label>
+        </div>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Gespeichert und im Shop angezeigt wird immer der Brutto-Preis.
+        </p>
+      </fieldset>
+
       {offerKauf ? (
         <div>
           <label className="mb-1 block text-sm font-medium" htmlFor="price_eur">
-            Kaufpreis (EUR) *
+            Kaufpreis (EUR, {vkMode}) *
           </label>
           <input
             id="price_eur"
@@ -607,20 +749,24 @@ export default function ListingForm({
             step="0.01"
             min="0"
             required={offerKauf}
-            defaultValue={
-              listing?.price_cents != null
-                ? (listing.price_cents / 100).toFixed(2)
-                : ""
-            }
+            value={priceEur}
+            onChange={(e) => setPriceEur(e.target.value)}
             className="w-full max-w-xs rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-950"
           />
+          {priceEnteredCents != null ? (
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              {vkMode === "brutto"
+                ? `= ${formatEurFromCents(grossToNetCents(priceEnteredCents))} netto`
+                : `wird gespeichert als ${formatEurFromCents(netToGrossCents(priceEnteredCents))} brutto (inkl. 19 % MwSt.)`}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
       {offerMiete ? (
         <div>
           <label className="mb-1 block text-sm font-medium" htmlFor="daily_eur">
-            Tagessatz (EUR) *
+            Tagessatz (EUR, {vkMode}) *
           </label>
           <input
             id="daily_eur"
@@ -629,15 +775,53 @@ export default function ListingForm({
             step="0.01"
             min="0"
             required={offerMiete}
-            defaultValue={
-              listing?.daily_rate_cents != null
-                ? (listing.daily_rate_cents / 100).toFixed(2)
-                : ""
-            }
+            value={dailyEur}
+            onChange={(e) => setDailyEur(e.target.value)}
             className="w-full max-w-xs rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-950"
           />
+          {dailyEnteredCents != null ? (
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              {vkMode === "brutto"
+                ? `= ${formatEurFromCents(grossToNetCents(dailyEnteredCents))} netto`
+                : `wird gespeichert als ${formatEurFromCents(netToGrossCents(dailyEnteredCents))} brutto (inkl. 19 % MwSt.)`}
+            </p>
+          ) : null}
         </div>
       ) : null}
+
+      <div>
+        <label
+          className="mb-1 block text-sm font-medium"
+          htmlFor="purchase_net_eur"
+        >
+          Einkaufspreis netto (EUR)
+        </label>
+        <input
+          id="purchase_net_eur"
+          name="purchase_net_eur"
+          type="number"
+          step="0.01"
+          min="0"
+          value={purchaseNetEur}
+          onChange={(e) => setPurchaseNetEur(e.target.value)}
+          className="w-full max-w-xs rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-950"
+        />
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          Nur intern für Admins sichtbar — erscheint nie im Shop.
+        </p>
+        {offerKauf ? (
+          <p className="mt-1 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            Marge:{" "}
+            {liveMargin != null
+              ? `${formatEurFromCents(liveMargin)}${
+                  liveMarginPct != null
+                    ? ` (${liveMarginPct.toFixed(1).replace(".", ",")} %)`
+                    : ""
+                }`
+              : "—"}
+          </p>
+        ) : null}
+      </div>
 
       <div className="flex items-center gap-2">
         <input

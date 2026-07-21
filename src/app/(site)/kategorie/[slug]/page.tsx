@@ -4,8 +4,12 @@ import { notFound } from "next/navigation";
 import ContentContainer from "@/components/ContentContainer";
 import JsonLd from "@/components/seo/JsonLd";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { buildBreadcrumbSchema } from "@/lib/seo/listing-schema";
+import {
+  buildBreadcrumbSchema,
+  buildItemListSchema,
+} from "@/lib/seo/listing-schema";
 import { absoluteUrl } from "@/lib/site-url";
+import { listingPublicPath } from "@/lib/listing-url";
 import ListingFilters from "@/components/ListingFilters";
 import ListingCard from "@/components/ListingCard";
 import {
@@ -195,10 +199,23 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   return (
     <ContentContainer>
     <JsonLd
-      data={buildBreadcrumbSchema([
-        { name: "Start", url: absoluteUrl("/") },
-        { name: cat.name, url: absoluteUrl(`/kategorie/${cat.slug}`) },
-      ])}
+      data={[
+        buildBreadcrumbSchema([
+          { name: "Start", url: absoluteUrl("/") },
+          { name: "Anhänger kaufen", url: absoluteUrl("/anhaenger") },
+          { name: cat.name, url: absoluteUrl(`/kategorie/${cat.slug}`) },
+        ]),
+        ...(list.length
+          ? [
+              buildItemListSchema(
+                list.map((listing) => ({
+                  url: absoluteUrl(listingPublicPath(listing.slug)),
+                  name: listing.title,
+                })),
+              ),
+            ]
+          : []),
+      ]}
     />
     <div className="space-y-8">
       <div>
@@ -207,10 +224,14 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             Start
           </Link>
           <span className="mx-2">/</span>
+          <Link href="/anhaenger" className="hover:underline">
+            Anhänger kaufen
+          </Link>
+          <span className="mx-2">/</span>
           <span>{cat.name}</span>
         </p>
         <h1 className="mt-2 text-3xl font-bold text-zinc-900 dark:text-white">
-          {cat.name}
+          {cat.name} kaufen
         </h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
           Alle aktuellen Kauf-Inserate in dieser Kategorie. Für Miet-Angebote

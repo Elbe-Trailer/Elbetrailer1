@@ -31,6 +31,8 @@ type Props = {
     tireSizes: number[];
   };
   showCategoryFilter?: boolean;
+  /** Auf Markenseiten ausblenden — die Marke ist dort bereits durch die Route festgelegt. */
+  showBrandFilter?: boolean;
 };
 
 type RangeSliderFieldProps = {
@@ -355,6 +357,7 @@ export default function ListingFilters({
   sliderBounds,
   filterOptions,
   showCategoryFilter = true,
+  showBrandFilter = true,
 }: Props) {
   const rootRef = useRef<HTMLFormElement | null>(null);
   const router = useRouter();
@@ -518,7 +521,7 @@ export default function ListingFilters({
       className="space-y-3"
     >
       <div className="overflow-visible rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
             onClick={toggleCollapsed}
@@ -533,7 +536,7 @@ export default function ListingFilters({
               </span>
             ) : null}
           </button>
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             {collapsed && activeFilterCount > 0 ? (
               <button
                 type="button"
@@ -562,16 +565,18 @@ export default function ListingFilters({
               highlighted={filters.category.length > 0}
             />
           ) : null}
-          <FilterChipMultiSelect
-            chipKey="brand"
-            openKey={openDropdown}
-            onToggle={toggleDropdown}
-            label="Marke"
-            name={FILTER_PARAM_KEYS.brand}
-            selectedValues={filters.brand}
-            options={filterOptions.brands.map((x) => ({ value: x, label: x }))}
-            highlighted={filters.brand.length > 0}
-          />
+          {showBrandFilter ? (
+            <FilterChipMultiSelect
+              chipKey="brand"
+              openKey={openDropdown}
+              onToggle={toggleDropdown}
+              label="Marke"
+              name={FILTER_PARAM_KEYS.brand}
+              selectedValues={filters.brand}
+              options={filterOptions.brands.map((x) => ({ value: x, label: x }))}
+              highlighted={filters.brand.length > 0}
+            />
+          ) : null}
           <FilterChipMultiSelect
             chipKey="axle"
             openKey={openDropdown}

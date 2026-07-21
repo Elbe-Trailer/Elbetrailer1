@@ -3,6 +3,9 @@
 import { withAdminSavedParam } from "@/lib/admin/saved-query";
 import { requireAdmin } from "@/lib/auth/admin";
 import { listingPublicPath } from "@/lib/listing-url";
+import { nettoEnteredToGross } from "@/lib/vat";
+import { COSTS_MIGRATION_HINT, upsertCostRow } from "@/lib/admin/costs";
+import type { VkInputMode } from "@/types/database";
 import { ensureUniqueSlug, normalizeSlug } from "@/lib/slug";
 import { removeObjects } from "@/lib/storage-provider";
 import { revalidatePath } from "next/cache";
@@ -55,7 +58,7 @@ function parseEuroToCents(v: FormDataEntryValue | null): number | null {
 export type SaveListingState =
   | undefined
   | { ok: false; error: string }
-  | { ok: true; listingId: string; created: boolean };
+  | { ok: true; listingId: string; created: boolean; warning?: string };
 
 export async function saveListing(
   _prev: SaveListingState,
@@ -73,7 +76,11 @@ export async function saveListing(
   if (!slugInput) return { ok: false, error: "Slug erforderlich." };
 
   const { data: existingListing } = id
-    ? await supabase.from("listings").select("slug").eq("id", id).maybeSingle()
+    ? await supabase
+        .from("listings")
+        .select("slug, price_cents, daily_rate_cents")
+        .eq("id", id)
+        .maybeSingle()
     : { data: null };
 
   const slug = await ensureUniqueSlug(
@@ -109,16 +116,35 @@ export async function saveListing(
   const condition = String(formData.get("condition") ?? "").trim() || null;
   const hasKauf = listing_type === "kauf" || listing_type === "kauf_und_miete";
   const hasMiete = listing_type === "miete" || listing_type === "kauf_und_miete";
-  const price_cents = hasKauf ? parseEuroToCents(formData.get("price_eur")) : null;
-  const daily_rate_cents = hasMiete
+  // Gespeichert wird immer Brutto; bei Netto-Eingabe wird hier konvertiert.
+  const vk_input_mode: VkInputMode =
+    formData.get("vk_input_mode") === "netto" ? "netto" : "brutto";
+  const enteredPrice = hasKauf ? parseEuroToCents(formData.get("price_eur")) : null;
+  const enteredDaily = hasMiete
     ? parseEuroToCents(formData.get("daily_eur"))
     : null;
 
-  if (hasKauf && price_cents == null) {
+  if (hasKauf && enteredPrice == null) {
     return { ok: false, error: "Bitte Kaufpreis angeben." };
   }
-  if (hasMiete && daily_rate_cents == null) {
+  if (hasMiete && enteredDaily == null) {
     return { ok: false, error: "Bitte Mietpreis (Tagessatz) angeben." };
+  }
+
+  const price_cents =
+    enteredPrice != null && vk_input_mode === "netto"
+      ? nettoEnteredToGross(enteredPrice, existingListing?.price_cents)
+      : enteredPrice;
+  const daily_rate_cents =
+    enteredDaily != null && vk_input_mode === "netto"
+      ? nettoEnteredToGross(enteredDaily, existingListing?.daily_rate_cents)
+      : enteredDaily;
+
+  const purchase_price_net_cents = parseEuroToCents(
+    formData.get("purchase_net_eur"),
+  );
+  if (purchase_price_net_cents != null && purchase_price_net_cents < 0) {
+    return { ok: false, error: "Einkaufspreis darf nicht negativ sein." };
   }
 
   const payload_kg = parseIntOrNull(formData.get("payload_kg"));
@@ -247,13 +273,30 @@ export async function saveListing(
     });
   }
 
+  // EK + Eingabemodus zuletzt in der admin-only Tabelle speichern (unbedingter
+  // Upsert, damit der Modus auch ohne EK erhalten bleibt; EK null ≠ EK 0).
+  // Ein Fehler hier wird nur als Warnung gemeldet: Das Inserat ist bereits
+  // gespeichert — ein Fehlschlag würde beim Neuanlegen zu Duplikaten verleiten.
+  const costResult = await upsertCostRow(supabase, "listing", listingId, {
+    purchase_price_net_cents,
+    vk_input_mode,
+  });
+  const warning = costResult.ok
+    ? undefined
+    : costResult.missingTable
+      ? COSTS_MIGRATION_HINT
+      : "Inserat gespeichert, aber der Einkaufspreis konnte nicht gespeichert werden. Bitte erneut speichern.";
+
   revalidatePath("/");
   revalidateSiteHome();
   revalidatePath("/admin/listings");
   revalidatePath(listingPublicPath(slug));
 
   if (wasNew) {
-    return { ok: true, listingId, created: true };
+    return { ok: true, listingId, created: true, warning };
+  }
+  if (warning) {
+    return { ok: true, listingId, created: false, warning };
   }
   redirect(withAdminSavedParam(`/admin/listings/${listingId}`));
 }

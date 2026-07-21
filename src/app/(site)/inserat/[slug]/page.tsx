@@ -10,6 +10,7 @@ import { getOptionalAdmin } from "@/lib/auth/admin";
 import { formatEurFromCents, formatMm } from "@/lib/format";
 import { getPublishedListingByParam } from "@/lib/listings/public";
 import { listingPublicPath } from "@/lib/listing-url";
+import { brandSlug } from "@/lib/brands";
 import { resolveCustomerListingMode } from "@/lib/listingCustomerMode";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import {
@@ -358,12 +359,34 @@ export default async function ListingPage({ params, searchParams }: Props) {
             {customerMode === "miete"
               ? `${formatEurFromCents(listing.daily_rate_cents)} / Tag`
               : formatEurFromCents(listing.price_cents)}
+            {(customerMode === "miete"
+              ? listing.daily_rate_cents
+              : listing.price_cents) != null ? (
+              <span className="ml-2 text-sm font-normal text-zinc-500 dark:text-zinc-400">
+                inkl. 19 % MwSt
+              </span>
+            ) : null}
           </p>
 
           <dl className="mt-8 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
             <div>
               <dt className="text-zinc-500">Marke</dt>
-              <dd>{listing.brand ?? "—"}</dd>
+              <dd>
+                {listing.brand ? (
+                  listing.listing_type === "miete" ? (
+                    listing.brand
+                  ) : (
+                    <Link
+                      href={`/marke/${brandSlug(listing.brand)}`}
+                      className="text-brand hover:underline dark:text-red-400"
+                    >
+                      {listing.brand}
+                    </Link>
+                  )
+                ) : (
+                  "—"
+                )}
+              </dd>
             </div>
             <div>
               <dt className="text-zinc-500">Artikelnummer</dt>

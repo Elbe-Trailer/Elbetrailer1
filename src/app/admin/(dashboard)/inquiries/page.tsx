@@ -3,6 +3,7 @@ import { formatEurFromCents } from "@/lib/format";
 import { calculateRentalPrice } from "@/lib/rentalPricing";
 import Link from "next/link";
 import { listingPublicPath } from "@/lib/listing-url";
+import MarginTable, { type MarginLine } from "@/components/admin/MarginTable";
 import {
   deleteContactInquiry,
   deleteInquiry,
@@ -66,31 +67,70 @@ export default async function AdminInquiriesPage({ searchParams }: Props) {
       ),
     ),
   );
+  const listingIds = Array.from(
+    new Set((rows ?? []).map((row) => row.listing_id as string).filter(Boolean)),
+  );
+
+  // Rabattstufen, Zubehör-Details und EK (admin-only Cost-Tabellen) hängen nur
+  // von den bereits geladenen Anfragen ab — eine parallele Runde statt dreier
+  // serieller Roundtrips.
+  const [
+    { data: globalDiscountTiers },
+    { data: accessoryRows },
+    { data: listingCostRows },
+    { data: accessoryCostRows },
+  ] = await Promise.all([
+    supabase
+      .from("rental_discount_tiers")
+      .select("min_days, discount_percent")
+      .order("min_days", { ascending: true }),
+    accessoryIds.length > 0
+      ? supabase
+          .from("accessories")
+          .select("id, name, article_number, price_adjustment_cents")
+          .in("id", accessoryIds)
+      : Promise.resolve({ data: null }),
+    listingIds.length > 0
+      ? supabase
+          .from("listing_costs")
+          .select("listing_id, purchase_price_net_cents")
+          .in("listing_id", listingIds)
+      : Promise.resolve({ data: null }),
+    accessoryIds.length > 0
+      ? supabase
+          .from("accessory_costs")
+          .select("accessory_id, purchase_price_net_cents")
+          .in("accessory_id", accessoryIds)
+      : Promise.resolve({ data: null }),
+  ]);
+
   const accessoryById = new Map<
     string,
     { name: string; article_number: string | null; price_adjustment_cents: number }
   >();
-  const { data: globalDiscountTiers } = await supabase
-    .from("rental_discount_tiers")
-    .select("min_days, discount_percent")
-    .order("min_days", { ascending: true });
-  if (accessoryIds.length > 0) {
-    const { data: accessoryRows } = await supabase
-      .from("accessories")
-      .select("id, name, article_number, price_adjustment_cents")
-      .in("id", accessoryIds);
-    for (const accessory of accessoryRows ?? []) {
-      accessoryById.set(accessory.id as string, {
-        name: String(accessory.name),
-        article_number:
-          accessory.article_number == null ? null : String(accessory.article_number),
-        price_adjustment_cents:
-          typeof accessory.price_adjustment_cents === "number"
-            ? accessory.price_adjustment_cents
-            : 0,
-      });
-    }
+  for (const accessory of accessoryRows ?? []) {
+    accessoryById.set(accessory.id as string, {
+      name: String(accessory.name),
+      article_number:
+        accessory.article_number == null ? null : String(accessory.article_number),
+      price_adjustment_cents:
+        typeof accessory.price_adjustment_cents === "number"
+          ? accessory.price_adjustment_cents
+          : 0,
+    });
   }
+  const listingEkById = new Map<string, number | null>(
+    (listingCostRows ?? []).map((row) => [
+      row.listing_id as string,
+      (row.purchase_price_net_cents as number | null) ?? null,
+    ]),
+  );
+  const accessoryEkById = new Map<string, number | null>(
+    (accessoryCostRows ?? []).map((row) => [
+      row.accessory_id as string,
+      (row.purchase_price_net_cents as number | null) ?? null,
+    ]),
+  );
 
   return (
     <div className="space-y-6">
@@ -149,6 +189,33 @@ export default async function AdminInquiriesPage({ searchParams }: Props) {
               isRentalInquiry && subtotalCents != null && (rentalDays ?? 0) > 0
                 ? calculateRentalPrice(subtotalCents, rentalDays as number, globalDiscountTiers ?? [])
                 : null;
+            const marginLines: MarginLine[] = [];
+            if (basePriceCents != null) {
+              marginLines.push({
+                key: "base",
+                label: `Basis: ${listingTitle}`,
+                quantity: 1,
+                vkGrossCents: basePriceCents,
+                ekNetCents: listingEkById.get(r.listing_id as string) ?? null,
+              });
+            }
+            for (const s of selections) {
+              const qty = Math.max(0, Number(s.quantity) || 0);
+              if (qty <= 0) continue;
+              const accessory = accessoryById.get(s.accessory_id);
+              marginLines.push({
+                key: s.accessory_id,
+                label: accessory
+                  ? accessory.name
+                  : `Zubehör ${s.accessory_id.slice(0, 8)}…`,
+                sublabel: accessory?.article_number
+                  ? `Art.-Nr. ${accessory.article_number}`
+                  : undefined,
+                quantity: qty,
+                vkGrossCents: accessory?.price_adjustment_cents ?? 0,
+                ekNetCents: accessoryEkById.get(s.accessory_id) ?? null,
+              });
+            }
             return (
               <li
                 key={r.id}
@@ -317,6 +384,17 @@ export default async function AdminInquiriesPage({ searchParams }: Props) {
                     </>
                   ) : null}
                 </div>
+                {marginLines.length > 0 ? (
+                  <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50/50 p-3 text-sm dark:border-violet-900 dark:bg-violet-950/20">
+                    <p className="mb-2 font-medium text-violet-900 dark:text-violet-200">
+                      Kalkulation (intern — VK/EK)
+                    </p>
+                    <MarginTable
+                      lines={marginLines}
+                      mode={isRentalInquiry ? "miete" : "kauf"}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-4">
                   <form action={deleteInquiry}>
                     <input type="hidden" name="id" value={r.id} />

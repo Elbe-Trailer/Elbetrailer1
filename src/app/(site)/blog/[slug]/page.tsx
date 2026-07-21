@@ -8,7 +8,11 @@ import StorageImage from "@/components/StorageImage";
 import JsonLd from "@/components/seo/JsonLd";
 import { getOptionalAdmin } from "@/lib/auth/admin";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { buildBlogPostingSchema } from "@/lib/seo/listing-schema";
+import {
+  buildBlogPostingSchema,
+  buildBreadcrumbSchema,
+} from "@/lib/seo/listing-schema";
+import { absoluteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { publicStorageUrl } from "@/lib/storage";
 
@@ -49,7 +53,7 @@ export default async function BlogPostPublicPage({ params }: Props) {
   const { data: post, error } = await supabase
     .from("blog_posts")
     .select(
-      "id, slug, title, excerpt, content, author, published_at, cover_image_path, blog_categories ( slug, name )",
+      "id, slug, title, excerpt, content, author, published_at, updated_at, cover_image_path, blog_categories ( slug, name )",
     )
     .eq("slug", slug)
     .eq("published", true)
@@ -80,17 +84,25 @@ export default async function BlogPostPublicPage({ params }: Props) {
   return (
     <ContentContainer>
       <JsonLd
-        data={buildBlogPostingSchema(
-          {
-            slug: post.slug,
-            title: post.title,
-            excerpt: post.excerpt,
-            author: post.author,
-            published_at: post.published_at,
-            cover_image_path: post.cover_image_path,
-          },
-          cover,
-        )}
+        data={[
+          buildBlogPostingSchema(
+            {
+              slug: post.slug,
+              title: post.title,
+              excerpt: post.excerpt,
+              author: post.author,
+              published_at: post.published_at,
+              updated_at: post.updated_at,
+              cover_image_path: post.cover_image_path,
+            },
+            cover,
+          ),
+          buildBreadcrumbSchema([
+            { name: "Start", url: absoluteUrl("/") },
+            { name: "Blog", url: absoluteUrl("/blog") },
+            { name: post.title, url: absoluteUrl(`/blog/${post.slug}`) },
+          ]),
+        ]}
       />
       <article className="mx-auto max-w-3xl space-y-8 pb-12">
         <nav className="text-sm text-zinc-500 dark:text-zinc-400">

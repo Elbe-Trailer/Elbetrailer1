@@ -111,6 +111,13 @@ export default async function HomePage() {
                       value={copy["home.categories.heading"]}
                     />
                   </h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                    <AdminInlineMarketingContentEditor
+                      contentKey="home.categories.intro.body"
+                      value={copy["home.categories.intro.body"]}
+                      multiline
+                    />
+                  </p>
                 </div>
                 <Link
                   href="/mieten"
