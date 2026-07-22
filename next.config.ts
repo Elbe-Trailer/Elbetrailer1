@@ -28,6 +28,9 @@ const devAllowedOrigins =
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: devAllowedOrigins,
+  // exceljs ist eine Node-Bibliothek (nur in Route Handlern genutzt) und wird
+  // nicht in das Server-Bundle gezogen, um Bundling-Probleme zu vermeiden.
+  serverExternalPackages: ["exceljs"],
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb",
