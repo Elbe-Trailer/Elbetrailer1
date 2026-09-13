@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { revalidatePath } from "next/cache";
 import { revalidateSiteCategories } from "@/lib/cache/revalidate-site";
 import { redirect } from "next/navigation";
+import { normalizeSlug } from "@/lib/slug";
 
 export type SaveCategoryState = undefined | { ok: false; error: string };
 
@@ -15,10 +16,8 @@ export async function saveCategory(
   const { supabase } = await requireAdmin();
   const id = String(formData.get("id") ?? "").trim() || null;
   const name = String(formData.get("name") ?? "").trim();
-  const slug = String(formData.get("slug") ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-");
+  // Umlaute etc. würden in der URL prozentkodiert und die Kategorieseite liefe ins 404.
+  const slug = normalizeSlug(String(formData.get("slug") ?? ""));
   const sort_order =
     Number.parseInt(String(formData.get("sort_order") ?? "0"), 10) || 0;
   const is_active = formData.get("is_active") === "on";

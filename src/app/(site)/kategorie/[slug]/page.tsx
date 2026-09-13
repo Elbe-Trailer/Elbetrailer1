@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import ContentContainer from "@/components/ContentContainer";
 import JsonLd from "@/components/seo/JsonLd";
 import { buildPageMetadata } from "@/lib/seo/metadata";
@@ -17,6 +17,7 @@ import {
   parseListingFilters,
   type ListingFilterSearchParams,
 } from "@/lib/listingFilters";
+import { normalizeSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 import type { Listing } from "@/types/database";
 
@@ -25,37 +26,73 @@ type Props = {
   searchParams: Promise<ListingFilterSearchParams>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
-  const supabase = await createClient();
-  const { data: cat } = await supabase
-    .from("categories")
-    .select("name")
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .maybeSingle();
-  if (!cat) return { title: "Kategorie" };
-  return buildPageMetadata({
-    title: `${cat.name} kaufen`,
-    description: `${cat.name} kaufen — Inserate, Filter und technische Daten bei elbe-trailer.`,
-    path: `/kategorie/${slug}`,
-  });
+function decodeSlug(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
-export default async function CategoryPage({ params, searchParams }: Props) {
-  const { slug } = await params;
-  const sp = await searchParams;
-  const filters = parseListingFilters(sp);
-  const supabase = await createClient();
-
-  const { data: cat } = await supabase
+/**
+ * Route-Params kommen prozentkodiert an (z. B. `motorradanh%C3%A4nger`).
+ * Zusätzlich werden Umlaut- und ASCII-Schreibweise als gleich behandelt,
+ * damit alte Links nach einer Slug-Umstellung weiter funktionieren.
+ */
+async function findActiveCategory(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  slug: string,
+) {
+  const { data: exact } = await supabase
     .from("categories")
     .select("id, name, slug")
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
+  if (exact) return exact;
+
+  const wanted = normalizeSlug(slug);
+  if (!wanted) return null;
+  const { data: all } = await supabase
+    .from("categories")
+    .select("id, name, slug")
+    .eq("is_active", true);
+  return (all ?? []).find((c) => normalizeSlug(c.slug) === wanted) ?? null;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const slug = decodeSlug((await params).slug);
+  const supabase = await createClient();
+  const cat = await findActiveCategory(supabase, slug);
+  if (!cat) return { title: "Kategorie" };
+  return buildPageMetadata({
+    title: `${cat.name} kaufen`,
+    description: `${cat.name} kaufen — Inserate, Filter und technische Daten bei elbe-trailer.`,
+    path: `/kategorie/${encodeURIComponent(cat.slug)}`,
+  });
+}
+
+export default async function CategoryPage({ params, searchParams }: Props) {
+  const slug = decodeSlug((await params).slug);
+  const sp = await searchParams;
+  const filters = parseListingFilters(sp);
+  const supabase = await createClient();
+
+  const cat = await findActiveCategory(supabase, slug);
 
   if (!cat) notFound();
+  if (cat.slug !== slug) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(sp)) {
+      for (const v of Array.isArray(value) ? value : [value]) {
+        if (typeof v === "string") query.append(key, v);
+      }
+    }
+    const qs = query.toString();
+    permanentRedirect(
+      `/kategorie/${encodeURIComponent(cat.slug)}${qs ? `?${qs}` : ""}`,
+    );
+  }
 
   const { data: categoriesData } = await supabase
     .from("categories")
