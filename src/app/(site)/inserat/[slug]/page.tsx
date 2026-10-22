@@ -10,6 +10,7 @@ import { getOptionalAdmin } from "@/lib/auth/admin";
 import { formatEurFromCents, formatMm } from "@/lib/format";
 import { getPublishedListingByParam } from "@/lib/listings/public";
 import { listingPublicPath } from "@/lib/listing-url";
+import { getConfirmedBookingRanges } from "@/lib/listings/rental-bookings";
 import { brandSlug } from "@/lib/brands";
 import { resolveCustomerListingMode } from "@/lib/listingCustomerMode";
 import { buildPageMetadata } from "@/lib/seo/metadata";
@@ -258,19 +259,15 @@ export default async function ListingPage({ params, searchParams }: Props) {
         }
       }
 
-      const [{ data: blocks }, { data: bookings }] = await Promise.all([
+      const [{ data: blocks }, bookings] = await Promise.all([
         supabase
           .from("rental_calendar_blocks")
           .select("start_date, end_date")
           .eq("rental_unit_id", rentalUnit.id),
-        supabase
-          .from("rental_bookings")
-          .select("start_date, end_date")
-          .eq("rental_unit_id", rentalUnit.id)
-          .eq("status", "confirmed"),
+        getConfirmedBookingRanges(rentalUnit.id),
       ]);
 
-      unavailableRanges = [...(blocks ?? []), ...(bookings ?? [])];
+      unavailableRanges = [...(blocks ?? []), ...bookings];
     }
   }
 

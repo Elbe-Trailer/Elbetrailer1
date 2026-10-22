@@ -2,11 +2,21 @@
 
 import { randomUUID } from "crypto";
 import { sendListingInquiryEmails } from "@/lib/email";
+import {
+  isHoneypotFilled,
+  isInquiryRateLimited,
+  readInquiryContactFields,
+  validateInquiryContactFields,
+} from "@/lib/inquiry-guard";
 import { listingPublicPath } from "@/lib/listing-url";
+import { getConfirmedBookingRanges } from "@/lib/listings/rental-bookings";
+import { isUuid } from "@/lib/slug";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import type { AccessorySelection } from "@/types/database";
 import { revalidatePath } from "next/cache";
+
+const MAX_ACCESSORY_SELECTIONS = 100;
 
 export type SubmitInquiryState =
   | { ok: true }
@@ -16,26 +26,53 @@ export async function submitInquiry(
   _prev: SubmitInquiryState | undefined,
   formData: FormData,
 ): Promise<SubmitInquiryState> {
-  const listingId = formData.get("listing_id") as string;
-  const name = String(formData.get("name") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
-  const phone = String(formData.get("phone") ?? "").trim();
-  const message = String(formData.get("message") ?? "").trim();
+  // Bots füllen das versteckte Feld aus – scheinbar erfolgreich antworten,
+  // aber nichts speichern oder versenden.
+  if (isHoneypotFilled(formData)) return { ok: true };
+
+  const listingId = String(formData.get("listing_id") ?? "").trim();
+  const { name, email, phone, message } = readInquiryContactFields(formData);
   const startDate = String(formData.get("start_date") ?? "").trim();
   const endDate = String(formData.get("end_date") ?? "").trim();
   const customerAnsicht = String(formData.get("customer_ansicht") ?? "").trim();
   const rawSelections = formData.get("accessory_selections");
-  let accessory_selections: AccessorySelection[] = [];
+  const accessory_selections: AccessorySelection[] = [];
   try {
     if (typeof rawSelections === "string" && rawSelections) {
-      accessory_selections = JSON.parse(rawSelections) as AccessorySelection[];
+      const parsed: unknown = JSON.parse(rawSelections);
+      if (!Array.isArray(parsed) || parsed.length > MAX_ACCESSORY_SELECTIONS) {
+        return { ok: false, error: "Ungültige Konfiguration." };
+      }
+      for (const entry of parsed) {
+        const { accessory_id, quantity } = (entry ?? {}) as Record<string, unknown>;
+        if (
+          typeof accessory_id !== "string" ||
+          !isUuid(accessory_id) ||
+          typeof quantity !== "number" ||
+          !Number.isInteger(quantity) ||
+          quantity < 0
+        ) {
+          return { ok: false, error: "Ungültige Konfiguration." };
+        }
+        accessory_selections.push({ accessory_id, quantity });
+      }
     }
   } catch {
     return { ok: false, error: "Ungültige Konfiguration." };
   }
 
-  if (!listingId || !name || !email) {
-    return { ok: false, error: "Name und E-Mail sind Pflichtfelder." };
+  if (!listingId || !isUuid(listingId)) {
+    return { ok: false, error: "Inserat nicht gefunden." };
+  }
+  const validationError = validateInquiryContactFields({ name, email, phone, message });
+  if (validationError) {
+    return { ok: false, error: validationError };
+  }
+  if (await isInquiryRateLimited("inquiries", email)) {
+    return {
+      ok: false,
+      error: "Zu viele Anfragen in kurzer Zeit. Bitte versuchen Sie es später erneut.",
+    };
   }
 
   const supabase = await createClient();
@@ -57,13 +94,18 @@ export async function submitInquiry(
   if (selectedAccessoryIds.length) {
     const { data: allowedRows } = await supabase
       .from("listing_accessories")
-      .select("accessory_id")
+      .select("accessory_id, max_quantity")
       .eq("listing_id", listingId);
-    const allowed = new Set(
-      (allowedRows ?? []).map((r) => r.accessory_id as string),
+    const maxQuantityById = new Map(
+      (allowedRows ?? []).map((r) => [
+        r.accessory_id as string,
+        Math.max(1, Number(r.max_quantity) || 1),
+      ]),
     );
-    for (const id of selectedAccessoryIds) {
-      if (!allowed.has(id)) {
+    for (const sel of accessory_selections) {
+      if (sel.quantity <= 0) continue;
+      const maxQuantity = maxQuantityById.get(sel.accessory_id);
+      if (maxQuantity == null || sel.quantity > maxQuantity) {
         return { ok: false, error: "Ungültige Konfiguration." };
       }
     }
@@ -136,26 +178,18 @@ export async function submitInquiry(
       };
     }
 
-    const [{ data: conflictsBlocks }, { data: conflictsBookings }] =
-      await Promise.all([
-        supabase
-          .from("rental_calendar_blocks")
-          .select("id")
-          .eq("rental_unit_id", rentalUnit.id)
-          .lte("start_date", endDate)
-          .gte("end_date", startDate)
-          .limit(1),
-        supabase
-          .from("rental_bookings")
-          .select("id")
-          .eq("rental_unit_id", rentalUnit.id)
-          .eq("status", "confirmed")
-          .lte("start_date", endDate)
-          .gte("end_date", startDate)
-          .limit(1),
-      ]);
+    const [{ data: conflictsBlocks }, conflictsBookings] = await Promise.all([
+      supabase
+        .from("rental_calendar_blocks")
+        .select("id")
+        .eq("rental_unit_id", rentalUnit.id)
+        .lte("start_date", endDate)
+        .gte("end_date", startDate)
+        .limit(1),
+      getConfirmedBookingRanges(rentalUnit.id, { from: startDate, to: endDate }),
+    ]);
 
-    if ((conflictsBlocks?.length ?? 0) > 0 || (conflictsBookings?.length ?? 0) > 0) {
+    if ((conflictsBlocks?.length ?? 0) > 0 || conflictsBookings.length > 0) {
       return { ok: false, error: "Dieser Zeitraum ist leider nicht verfügbar." };
     }
   }

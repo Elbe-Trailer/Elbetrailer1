@@ -1,6 +1,20 @@
-"use server";
+// Nur serverseitige Helfer – bewusst KEIN "use server": das würde uploadObject
+// und removeObjects als öffentlich aufrufbare Server Actions ohne Admin-Check
+// registrieren. Aufrufer (Admin-Actions/-Routen) prüfen die Berechtigung selbst.
+import "server-only";
 
 import { DeleteObjectsCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+
+// Alle Uploads sind Bilder. SVG/HTML o. Ä. werden abgelehnt, weil sie auf der
+// öffentlichen R2-Domain als aktiver Inhalt (Script) ausgeliefert würden.
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+]);
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name]?.trim() ?? "";
@@ -38,6 +52,12 @@ export async function uploadObject(params: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const { bucket, path, file } = params;
   if (!file || file.size === 0) return { ok: false, error: "Leere Datei." };
+  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+    return { ok: false, error: "Dateityp nicht erlaubt (JPG, PNG, WEBP, GIF, AVIF)." };
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return { ok: false, error: "Datei ist zu groß (max. 15 MB)." };
+  }
 
   try {
     const { client, bucket: r2Bucket } = getR2Client();
@@ -48,7 +68,7 @@ export async function uploadObject(params: {
         Bucket: r2Bucket,
         Key: objectKey(bucket, path),
         Body: body,
-        ContentType: file.type || "application/octet-stream",
+        ContentType: file.type,
       }),
     );
     return { ok: true };

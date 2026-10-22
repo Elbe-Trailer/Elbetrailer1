@@ -23,6 +23,15 @@ export default function ContactInquiryForm() {
 
   return (
     <form action={formAction} className="space-y-6">
+      {/* Honeypot gegen Spam-Bots – für Menschen unsichtbar, muss leer bleiben. */}
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        className="hidden"
+      />
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
           Kontaktanfrage

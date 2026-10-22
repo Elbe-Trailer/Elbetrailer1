@@ -205,6 +205,15 @@ export default function InquiryForm({
       <input type="hidden" name="accessory_selections" value={selections} />
       <input type="hidden" name="rental_unit_id" value={rentalUnitId ?? ""} />
       <input type="hidden" name="customer_ansicht" value={customerMode} />
+      {/* Honeypot gegen Spam-Bots – für Menschen unsichtbar, muss leer bleiben. */}
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        className="hidden"
+      />
 
       <Configurator
         accessories={accessories}

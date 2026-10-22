@@ -266,11 +266,8 @@ create policy "listing_highlights_admin_all"
   using (public.is_admin())
   with check (public.is_admin());
 
--- inquiries: anyone can insert; admin can read
-create policy "inquiries_insert_public"
-  on public.inquiries for insert
-  to anon, authenticated
-  with check (true);
+-- inquiries: insert only server-side (service role); admin can read
+drop policy if exists "inquiries_insert_public" on public.inquiries;
 
 create policy "inquiries_select_admin"
   on public.inquiries for select
@@ -520,22 +517,8 @@ create policy "rental_calendar_blocks_admin_all"
   using (public.is_admin())
   with check (public.is_admin());
 
+-- Buchungen enthalten Kundendaten: kein öffentlicher Lesezugriff (Website liest serverseitig).
 drop policy if exists "rental_bookings_public_read" on public.rental_bookings;
-create policy "rental_bookings_public_read"
-  on public.rental_bookings for select
-  to anon, authenticated
-  using (
-    status in ('pending', 'confirmed')
-    and exists (
-      select 1
-      from public.rental_units ru
-      join public.listings l on l.id = ru.listing_id
-      where ru.id = rental_bookings.rental_unit_id
-        and ru.active = true
-        and l.published = true
-        and l.listing_type in ('miete', 'kauf_und_miete')
-    )
-  );
 
 drop policy if exists "rental_bookings_admin_all" on public.rental_bookings;
 create policy "rental_bookings_admin_all"
@@ -735,11 +718,8 @@ create index if not exists contact_inquiries_created_idx
 
 alter table public.contact_inquiries enable row level security;
 
+-- Insert nur serverseitig (Service-Client), keine öffentliche Insert-Policy.
 drop policy if exists "contact_inquiries_insert_public" on public.contact_inquiries;
-create policy "contact_inquiries_insert_public"
-  on public.contact_inquiries for insert
-  to anon, authenticated
-  with check (true);
 
 drop policy if exists "contact_inquiries_select_admin" on public.contact_inquiries;
 create policy "contact_inquiries_select_admin"
